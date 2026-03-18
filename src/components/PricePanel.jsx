@@ -35,53 +35,53 @@ Mohon info lebih lanjut. Terima kasih!`;
   };
 
   return (
-    <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col h-full">
-      <div className="p-4 border-b border-slate-700">
-        <h2 className="text-lg font-semibold text-white">Ringkasan</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          {landSize.w}m x {landSize.l}m ({landSize.w * landSize.l}m²)
+    <div className="w-72 bg-[#1a1a2e] border-l border-[#2d2d42] flex flex-col h-full">
+      <div className="p-3 border-b border-[#2d2d42]">
+        <h2 className="text-sm font-semibold text-white">Summary</h2>
+        <p className="text-[10px] text-gray-500 mt-0.5">
+          {landSize.w}m × {landSize.l}m · {landSize.w * landSize.l}m²
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="bg-slate-700/50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-white">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 rounded-lg p-4 border border-cyan-500/20">
+          <div className="text-xl font-bold text-white">
             {formatCurrency(totalPrice)}
           </div>
-          <div className="text-xs text-slate-400 mt-1">
-            Total estimasi biaya
+          <div className="text-[10px] text-gray-400 mt-1">
+            Estimated Cost
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-semibold text-white">{modules.length}</div>
-            <div className="text-xs text-slate-400">Modul</div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-[#232338] rounded-lg p-2.5 text-center">
+            <div className="text-base font-semibold text-white">{modules.length}</div>
+            <div className="text-[10px] text-gray-500">Modules</div>
           </div>
-          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-semibold text-white">{totalArea.toFixed(1)}m²</div>
-            <div className="text-xs text-slate-400">Luas</div>
+          <div className="bg-[#232338] rounded-lg p-2.5 text-center">
+            <div className="text-base font-semibold text-white">{totalArea.toFixed(1)}m²</div>
+            <div className="text-[10px] text-gray-500">Area</div>
           </div>
         </div>
 
         {breakdown.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-slate-300 mb-2">
-              Detail Modul
+            <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Module Breakdown
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {breakdown.map((item) => (
                 <div
                   key={item.id}
-                  className="flex justify-between items-center text-sm py-2 border-b border-slate-700/50 last:border-0"
+                  className="flex justify-between items-center text-xs py-1.5 px-2 bg-[#232338] rounded"
                 >
                   <div>
-                    <p className="text-white">{item.label}</p>
-                    <p className="text-xs text-slate-400">
-                      {item.size} ({item.area}m²)
+                    <p className="text-gray-200">{item.label}</p>
+                    <p className="text-[10px] text-gray-500">
+                      {item.size} · {item.area}m²
                     </p>
                   </div>
-                  <p className="text-slate-300 font-medium">
+                  <p className="text-gray-300 font-medium">
                     {formatCurrency(item.price)}
                   </p>
                 </div>
@@ -91,30 +91,32 @@ Mohon info lebih lanjut. Terima kasih!`;
         )}
       </div>
 
-      <div className="p-4 border-t border-slate-700 space-y-3">
+      <div className="p-3 border-t border-[#2d2d42] space-y-2">
         <button
           onClick={handleWhatsApp}
           disabled={modules.length === 0}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 hover:bg-green-400 disabled:bg-[#2d2d42] disabled:text-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          <MessageCircle size={18} />
-          Konsultasi via WhatsApp
+          <MessageCircle size={16} />
+          WhatsApp
         </button>
         <button
           onClick={handleDownload}
           disabled={modules.length === 0}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-[#2d2d42] disabled:text-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          <Download size={18} />
-          Review & Download
+          <Download size={16} />
+          Review & Export
         </button>
         {modules.length > 0 && (
           <button
-            onClick={clearAll}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-slate-400 hover:text-white text-sm transition-colors"
+            onClick={() => {
+              if (confirm('Delete all modules?')) clearAll();
+            }}
+            className="w-full flex items-center justify-center gap-1 px-4 py-2 text-gray-500 hover:text-red-400 text-xs transition-colors"
           >
-            <Trash2 size={14} />
-            Hapus Semua
+            <Trash2 size={12} />
+            Clear All
           </button>
         )}
       </div>
