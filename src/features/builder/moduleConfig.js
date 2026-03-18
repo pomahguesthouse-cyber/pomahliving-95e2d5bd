@@ -1,0 +1,58 @@
+export const MODULES = [
+  {
+    type: 'bedroom',
+    label: 'Kamar Tidur',
+    defaultW: 3,
+    defaultL: 3,
+    price: 25000000,
+    color: '#6366f1',
+    icon: '🛏️',
+  },
+  {
+    type: 'bathroom',
+    label: 'Kamar Mandi',
+    defaultW: 2,
+    defaultL: 1.5,
+    price: 15000000,
+    color: '#22d3ee',
+    icon: '🚿',
+  },
+  {
+    type: 'kitchen',
+    label: 'Dapur',
+    defaultW: 3,
+    defaultL: 2,
+    price: 20000000,
+    color: '#f97316',
+    icon: '🍳',
+  },
+  {
+    type: 'living',
+    label: 'Ruang Tamu',
+    defaultW: 4,
+    defaultL: 3,
+    price: 35000000,
+    color: '#22c55e',
+    icon: '🛋️',
+  },
+  {
+    type: 'garage',
+    label: 'Garasi',
+    defaultW: 3,
+    defaultL: 5,
+    price: 30000000,
+    color: '#a855f7',
+    icon: '🚗',
+  },
+  {
+    type: 'garden',
+    label: 'Taman',
+    defaultW: 2,
+    defaultL: 2,
+    price: 10000000,
+    color: '#84cc16',
+    icon: '🌿',
+  },
+];
+
+export const getModuleByType = (type) => MODULES.find((m) => m.type === type);
