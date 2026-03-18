@@ -3,11 +3,13 @@ import useBuilderStore from '../features/builder/builderStore';
 
 const Topbar = () => {
   const navigate = useNavigate();
-  const { landSize, updateModulePosition, selectedId, rotateModule, resizeModule } = useBuilderStore();
-
-  const selectedModule = useBuilderStore((state) =>
+  const landSize = useBuilderStore((state) => state.landSize);
+  const selectedId = useBuilderStore((state) => state.selectedId);
+  const selectedModule = useBuilderStore((state) => 
     state.modules.find((m) => m.id === state.selectedId)
   );
+  const rotateModule = useBuilderStore((state) => state.rotateModule);
+  const resizeModule = useBuilderStore((state) => state.resizeModule);
 
   const handleResize = (dimension, delta) => {
     if (!selectedId || !selectedModule) return;

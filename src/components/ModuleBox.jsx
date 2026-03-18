@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useBuilderStore from '../features/builder/builderStore';
@@ -11,10 +11,23 @@ const ModuleBox = ({ module, isSelected, onSelect, onMove }) => {
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const raycaster = useRef(new THREE.Raycaster());
   const isDragging = useRef(false);
-  const { setDragging, landSize, modules } = useBuilderStore();
+  const setDragging = useBuilderStore((state) => state.setDragging);
+  const landSize = useBuilderStore((state) => state.landSize);
+  const modules = useBuilderStore((state) => state.modules);
 
   const height = 2.5;
   const color = module.color;
+
+  useEffect(() => {
+    const handlePointerUpGlobal = () => {
+      isDragging.current = false;
+      setDragging(false);
+      gl.domElement.style.cursor = 'auto';
+    };
+
+    window.addEventListener('pointerup', handlePointerUpGlobal);
+    return () => window.removeEventListener('pointerup', handlePointerUpGlobal);
+  }, [gl, setDragging]);
 
   const handlePointerDown = (e) => {
     e.stopPropagation();

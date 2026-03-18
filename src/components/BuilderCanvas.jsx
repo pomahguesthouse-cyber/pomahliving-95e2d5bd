@@ -1,12 +1,33 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import ModuleBox from './ModuleBox';
+import useBuilderStore from '../features/builder/builderStore';
 
-const BuilderCanvas = ({ modules, selectedId, onSelect, onMove }) => {
+const BuilderCanvas = () => {
+  const modules = useBuilderStore((state) => state.modules);
+  const selectedId = useBuilderStore((state) => state.selectedId);
+  const setSelected = useBuilderStore((state) => state.setSelected);
+  const updateModulePosition = useBuilderStore((state) => state.updateModulePosition);
+  const landSize = useBuilderStore((state) => state.landSize);
+
+  const handleCanvasClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setSelected(null);
+    }
+  };
+
+  const handleSelect = (id) => {
+    setSelected(id);
+  };
+
+  const handleMove = (id, x, z) => {
+    updateModulePosition(id, x, z);
+  };
+
   return (
-    <div className="w-full h-full bg-slate-900">
-      <Canvas shadows>
+    <div className="w-full h-full bg-slate-900" onClick={handleCanvasClick}>
+      <Canvas shadows gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={50} />
         <OrbitControls
           enablePan={true}
@@ -31,8 +52,8 @@ const BuilderCanvas = ({ modules, selectedId, onSelect, onMove }) => {
               key={module.id}
               module={module}
               isSelected={selectedId === module.id}
-              onSelect={onSelect}
-              onMove={onMove}
+              onSelect={handleSelect}
+              onMove={handleMove}
             />
           ))}
         </Suspense>

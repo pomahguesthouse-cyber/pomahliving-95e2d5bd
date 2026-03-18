@@ -1,15 +1,15 @@
 export const isOverlapping = (a, b) => {
   if (a.id === b.id) return false;
   
-  const aLeft = a.x;
-  const aRight = a.x + a.w;
-  const aTop = a.z;
-  const aBottom = a.z + a.l;
+  const aLeft = a.x - a.w / 2;
+  const aRight = a.x + a.w / 2;
+  const aTop = a.z - a.l / 2;
+  const aBottom = a.z + a.l / 2;
   
-  const bLeft = b.x;
-  const bRight = b.x + b.w;
-  const bTop = b.z;
-  const bBottom = b.z + b.l;
+  const bLeft = b.x - b.w / 2;
+  const bRight = b.x + b.w / 2;
+  const bTop = b.z - b.l / 2;
+  const bBottom = b.z + b.l / 2;
   
   return !(aRight <= bLeft || bRight <= aLeft || aBottom <= bTop || bBottom <= aTop);
 };

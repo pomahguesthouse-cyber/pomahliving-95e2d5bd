@@ -3,7 +3,13 @@ import useBuilderStore from '../features/builder/builderStore';
 import { RotateCw, Plus } from 'lucide-react';
 
 const ModuleSidebar = () => {
-  const { addModule, modules, selectedId, rotateModule, removeModule } = useBuilderStore();
+  const modules = useBuilderStore((state) => state.modules);
+  const selectedId = useBuilderStore((state) => state.selectedId);
+  const addModule = useBuilderStore((state) => state.addModule);
+  const rotateModule = useBuilderStore((state) => state.rotateModule);
+  const removeModule = useBuilderStore((state) => state.removeModule);
+
+  const selectedModule = modules.find((m) => m.id === selectedId);
 
   const handleAddModule = (moduleConfig) => {
     addModule(moduleConfig);
@@ -20,8 +26,6 @@ const ModuleSidebar = () => {
       removeModule(selectedId);
     }
   };
-
-  const selectedModule = modules.find((m) => m.id === selectedId);
 
   return (
     <div className="w-72 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
