@@ -47,7 +47,7 @@ const InputLand = () => {
           className="w-full max-w-xl"
         >
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 text-sm mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-indigo-300 text-sm mb-6">
               <Home size={16} />
               Langkah 1 dari 2
             </div>
@@ -69,7 +69,7 @@ const InputLand = () => {
                   onChange={(e) => setWidth(Number(e.target.value))}
                   min={4}
                   max={30}
-                  className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white text-lg focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white text-lg focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
               <div>
@@ -80,7 +80,7 @@ const InputLand = () => {
                   onChange={(e) => setLength(Number(e.target.value))}
                   min={4}
                   max={30}
-                  className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white text-lg focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white text-lg focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
             </div>
@@ -94,7 +94,7 @@ const InputLand = () => {
                     onClick={() => handlePreset(preset)}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       width === preset.w && length === preset.l
-                        ? 'bg-cyan-500 text-white'
+                        ? 'bg-indigo-500 text-white'
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
@@ -113,7 +113,7 @@ const InputLand = () => {
 
             <button
               onClick={handleContinue}
-              className="w-full py-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2"
             >
               Lanjut ke Desain <ArrowRight size={20} />
             </button>

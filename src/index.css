@@ -14,38 +14,30 @@
   html, body, #root {
     height: 100%;
     width: 100%;
-    overflow: hidden;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #1a1a2e;
-    color: #e2e8f0;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #0f172a;
+    color: #f1f5f9;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  .font-display {
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
-  ::-webkit-scrollbar-track {
-    background: #1a1a2e;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #3d3d5c;
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #4d4d6c;
+  .font-body {
+    font-family: 'Inter', system-ui, sans-serif;
   }
 }
 
 @layer utilities {
-  .font-mono {
-    font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+  .shadow-card {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  }
+  .shadow-card-hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
   }
 }

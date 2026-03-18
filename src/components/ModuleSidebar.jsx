@@ -1,6 +1,6 @@
 import { MODULES } from '../features/builder/moduleConfig';
 import useBuilderStore from '../features/builder/builderStore';
-import { Plus, Eye, EyeOff, Trash2, RotateCw } from 'lucide-react';
+import { RotateCw, Plus } from 'lucide-react';
 
 const ModuleSidebar = () => {
   const modules = useBuilderStore((state) => state.modules);
@@ -8,7 +8,6 @@ const ModuleSidebar = () => {
   const addModule = useBuilderStore((state) => state.addModule);
   const rotateModule = useBuilderStore((state) => state.rotateModule);
   const removeModule = useBuilderStore((state) => state.removeModule);
-  const toggleModuleVisibility = useBuilderStore((state) => state.toggleModuleVisibility);
 
   const selectedModule = modules.find((m) => m.id === selectedId);
 
@@ -16,81 +15,74 @@ const ModuleSidebar = () => {
     addModule(moduleConfig);
   };
 
+  const handleRotate = () => {
+    if (selectedId) {
+      rotateModule(selectedId);
+    }
+  };
+
+  const handleDelete = () => {
+    if (selectedId) {
+      removeModule(selectedId);
+    }
+  };
+
   return (
-    <div className="w-56 bg-[#1a1a2e] border-r border-[#2d2d42] flex flex-col">
-      <div className="p-3 border-b border-[#2d2d42]">
-        <h2 className="text-sm font-semibold text-white mb-1">Modules</h2>
-        <p className="text-[10px] text-gray-500">
-          {modules.length}/20 placed
+    <div className="w-72 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
+      <div className="p-4 border-b border-slate-700">
+        <h2 className="text-lg font-semibold text-white">Modul</h2>
+        <p className="text-xs text-slate-400 mt-1">
+          {modules.length}/20 modul
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {MODULES.map((module) => (
           <button
             key={module.type}
             onClick={() => handleAddModule(module)}
-            className="w-full flex items-center gap-2.5 p-2 rounded-lg bg-[#232338] hover:bg-[#2d2d42] transition-colors group"
+            className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition-colors text-left group"
           >
             <div
-              className="w-8 h-8 rounded flex items-center justify-center text-base"
-              style={{ backgroundColor: module.color + '25' }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+              style={{ backgroundColor: module.color + '30' }}
             >
               {module.icon}
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-xs font-medium text-gray-200">{module.label}</p>
-              <p className="text-[10px] text-gray-500">
-                {module.defaultW}×{module.defaultL}m
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">{module.label}</p>
+              <p className="text-xs text-slate-400">
+                {module.defaultW}m x {module.defaultL}m
               </p>
             </div>
             <Plus
-              size={14}
-              className="text-gray-600 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-all"
+              size={16}
+              className="text-slate-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
             />
           </button>
         ))}
       </div>
 
       {selectedModule && (
-        <div className="p-2 border-t border-[#2d2d42] space-y-1">
-          <div className="flex items-center gap-2 p-2 bg-[#232338] rounded-lg">
-            <div
-              className="w-6 h-6 rounded text-xs flex items-center justify-center"
-              style={{ backgroundColor: selectedModule.color + '25' }}
-            >
-              {MODULES.find((m) => m.type === selectedModule.type)?.icon}
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-white font-medium">{selectedModule.label}</p>
-              <p className="text-[10px] text-gray-500">
-                {selectedModule.w}×{selectedModule.l}m
-              </p>
-            </div>
+        <div className="p-4 border-t border-slate-700 space-y-3">
+          <div className="text-sm text-white font-medium">
+            {selectedModule.label} terpilih
           </div>
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => rotateModule(selectedId)}
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-[#232338] hover:bg-[#2d2d42] text-gray-400 hover:text-cyan-400 text-[10px] rounded transition-colors"
+              onClick={handleRotate}
+              className="flex items-center justify-center gap-2 px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition-colors"
             >
-              <RotateCw size={10} />
-              Rotate
+              <RotateCw size={14} />
+              Rotasi
             </button>
             <button
-              onClick={() => toggleModuleVisibility(selectedId)}
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-[#232338] hover:bg-[#2d2d42] text-gray-400 hover:text-white text-[10px] rounded transition-colors"
+              onClick={handleDelete}
+              className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg transition-colors"
             >
-              {selectedModule.visible ? <Eye size={10} /> : <EyeOff size={10} />}
-              {selectedModule.visible ? 'Hide' : 'Show'}
+              Hapus
             </button>
           </div>
-          <button
-            onClick={() => removeModule(selectedId)}
-            className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-[10px] rounded transition-colors"
-          >
-            <Trash2 size={10} />
-            Delete
-          </button>
         </div>
       )}
     </div>
