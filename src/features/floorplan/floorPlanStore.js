@@ -1,187 +1,311 @@
 import { create } from 'zustand';
-import { nanoid } from 'nanoid';
 
 const GRID_SIZE = 20;
 const WALL_THICKNESS = 24;
-const WALL_HEIGHT = 280;
+const METERS_TO_PIXELS = GRID_SIZE;
 
 const useFloorPlanStore = create((set, get) => ({
   walls: [],
   rooms: [],
-  doors: [],
-  windows: [],
+  openings: [],
   selectedId: null,
   selectedType: null,
   activeTool: 'select',
   gridVisible: true,
   zoom: 1,
-  panOffset: { x: 0, y: 0 },
-  isDrawing: false,
-  drawingStart: null,
-  uploadedImage: null,
+  panOffset: { x: 50, y: 50 },
+  history: [],
+  historyIndex: -1,
+  measurementUnit: 'm',
+  snapEnabled: true,
+  showDimensions: true,
+  showLabels: true,
+
+  pushHistory: () => {
+    const state = get();
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push({
+      walls: JSON.parse(JSON.stringify(state.walls)),
+      rooms: JSON.parse(JSON.stringify(state.rooms)),
+      openings: JSON.parse(JSON.stringify(state.openings)),
+    });
+    set({ history: newHistory, historyIndex: newHistory.length - 1 });
+  },
+
+  undo: () => {
+    const state = get();
+    if (state.historyIndex > 0) {
+      const newIndex = state.historyIndex - 1;
+      const snapshot = state.history[newIndex];
+      set({
+        walls: JSON.parse(JSON.stringify(snapshot.walls)),
+        rooms: JSON.parse(JSON.stringify(snapshot.rooms)),
+        openings: JSON.parse(JSON.stringify(snapshot.openings)),
+        historyIndex: newIndex,
+        selectedId: null,
+        selectedType: null,
+      });
+    }
+  },
+
+  redo: () => {
+    const state = get();
+    if (state.historyIndex < state.history.length - 1) {
+      const newIndex = state.historyIndex + 1;
+      const snapshot = state.history[newIndex];
+      set({
+        walls: JSON.parse(JSON.stringify(snapshot.walls)),
+        rooms: JSON.parse(JSON.stringify(snapshot.rooms)),
+        openings: JSON.parse(JSON.stringify(snapshot.openings)),
+        historyIndex: newIndex,
+        selectedId: null,
+        selectedType: null,
+      });
+    }
+  },
+
+  canUndo: () => get().historyIndex > 0,
+  canRedo: () => get().historyIndex < get().history.length - 1,
 
   setActiveTool: (tool) => set({ activeTool: tool, selectedId: null, selectedType: null }),
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
   setGridVisible: (visible) => set({ gridVisible: visible }),
+  setShowDimensions: (show) => set({ showDimensions: show }),
+  setShowLabels: (show) => set({ showLabels: show }),
+  setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
+  setMeasurementUnit: (unit) => set({ measurementUnit: unit }),
   
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setPanOffset: (offset) => set({ panOffset: offset }),
 
+  snapToGrid: (value) => {
+    if (!get().snapEnabled) return value;
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  },
+
+  pixelsToMeters: (pixels) => {
+    return pixels / METERS_TO_PIXELS;
+  },
+
+  metersToPixels: (meters) => {
+    return meters * METERS_TO_PIXELS;
+  },
+
+  addRoom: (x, y, width, height, name = 'Ruangan') => {
+    const id = `room-${Date.now()}`;
+    const snappedX = get().snapToGrid(x);
+    const snappedY = get().snapToGrid(y);
+    const snappedW = get().snapToGrid(width);
+    const snappedH = get().snapToGrid(height);
+    
+    const room = {
+      id,
+      x: snappedX,
+      y: snappedY,
+      width: snappedW,
+      height: snappedH,
+      name,
+      fill: '#f1f5f9',
+      stroke: '#94a3b8',
+      showLabel: true,
+    };
+
+    const walls = get().createWallsFromRoom(room);
+    
+    get().pushHistory();
+    set((state) => ({ 
+      rooms: [...state.rooms, room],
+      walls: [...state.walls, ...walls],
+    }));
+    return id;
+  },
+
+  createWallsFromRoom: (room) => {
+    const t = WALL_THICKNESS;
+    return [
+      { id: `wall-${Date.now()}-1`, x1: room.x, y1: room.y, x2: room.x + room.width, y2: room.y, thickness: t, roomId: room.id },
+      { id: `wall-${Date.now()}-2`, x1: room.x + room.width, y1: room.y, x2: room.x + room.width, y2: room.y + room.height, thickness: t, roomId: room.id },
+      { id: `wall-${Date.now()}-3`, x1: room.x + room.width, y1: room.y + room.height, x2: room.x, y2: room.y + room.height, thickness: t, roomId: room.id },
+      { id: `wall-${Date.now()}-4`, x1: room.x, y1: room.y + room.height, x2: room.x, y2: room.y, thickness: t, roomId: room.id },
+    ];
+  },
+
   addWall: (x1, y1, x2, y2) => {
-    const id = nanoid();
+    const id = `wall-${Date.now()}`;
     const wall = {
       id,
-      x1: Math.round(x1 / GRID_SIZE) * GRID_SIZE,
-      y1: Math.round(y1 / GRID_SIZE) * GRID_SIZE,
-      x2: Math.round(x2 / GRID_SIZE) * GRID_SIZE,
-      y2: Math.round(y2 / GRID_SIZE) * GRID_SIZE,
+      x1: get().snapToGrid(x1),
+      y1: get().snapToGrid(y1),
+      x2: get().snapToGrid(x2),
+      y2: get().snapToGrid(y2),
       thickness: WALL_THICKNESS,
-      height: WALL_HEIGHT,
-      color: '#374151',
+      roomId: null,
     };
+
+    get().pushHistory();
     set((state) => ({ walls: [...state.walls, wall] }));
     return id;
   },
 
-  addRoom: (x, y, width, height) => {
-    const id = nanoid();
-    const room = {
+  addOpening: (type, wallId, offset) => {
+    const id = `opening-${Date.now()}`;
+    const opening = {
       id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
-      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
-      fill: '#f3f4f6',
-      stroke: '#9ca3af',
+      type,
+      wallId,
+      offset: offset || 0.5,
+      width: type === 'door' ? 90 : 120,
     };
-    set((state) => ({ rooms: [...state.rooms, room] }));
+
+    get().pushHistory();
+    set((state) => ({ openings: [...state.openings, opening] }));
     return id;
   },
 
-  addDoor: (x, y, rotation = 0) => {
-    const id = nanoid();
-    const door = {
-      id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: 90,
-      rotation,
-      type: 'door',
-    };
-    set((state) => ({ doors: [...state.doors, door] }));
-    return id;
-  },
+  updateRoom: (id, updates) => {
+    const state = get();
+    const room = state.rooms.find((r) => r.id === id);
+    if (!room) return;
 
-  addWindow: (x, y, rotation = 0) => {
-    const id = nanoid();
-    const window = {
-      id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: 120,
-      rotation,
-      type: 'window',
-    };
-    set((state) => ({ windows: [...state.windows, window] }));
-    return id;
+    const oldWidth = room.width;
+    const oldHeight = room.height;
+    const newWidth = updates.width !== undefined ? updates.width : oldWidth;
+    const newHeight = updates.height !== undefined ? updates.height : oldHeight;
+
+    get().pushHistory();
+    set((state) => ({
+      rooms: state.rooms.map((r) => {
+        if (r.id !== id) return r;
+        return { ...r, ...updates };
+      }),
+      walls: state.walls.map((w) => {
+        if (w.roomId !== id) return w;
+        
+        if (w.x1 === room.x && w.y1 === room.y && w.x2 === room.x + oldWidth && w.y2 === room.y) {
+          return { ...w, x2: room.x + newWidth };
+        }
+        if (w.x1 === room.x + oldWidth && w.y1 === room.y && w.x2 === room.x + oldWidth && w.y2 === room.y + oldHeight) {
+          return { ...w, y1: room.y + newHeight, x1: room.x + newWidth };
+        }
+        if (w.x1 === room.x + oldWidth && w.y1 === room.y + oldHeight && w.x2 === room.x && w.y2 === room.y + oldHeight) {
+          return { ...w, x1: room.x + newWidth, x2: room.x };
+        }
+        if (w.x1 === room.x && w.y1 === room.y + oldHeight && w.x2 === room.x && w.y2 === room.y) {
+          return { ...w, y1: room.y + newHeight };
+        }
+        return w;
+      }),
+    }));
   },
 
   updateWall: (id, updates) => {
+    get().pushHistory();
     set((state) => ({
       walls: state.walls.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     }));
   },
 
-  updateRoom: (id, updates) => {
+  updateOpening: (id, updates) => {
+    get().pushHistory();
     set((state) => ({
-      rooms: state.rooms.map((r) => (r.id === id ? { ...r, ...updates } : r)),
-    }));
-  },
-
-  updateDoor: (id, updates) => {
-    set((state) => ({
-      doors: state.doors.map((d) => (d.id === id ? { ...d, ...updates } : d)),
-    }));
-  },
-
-  updateWindow: (id, updates) => {
-    set((state) => ({
-      windows: state.windows.map((w) => (w.id === id ? { ...w, ...updates } : w)),
+      openings: state.openings.map((o) => (o.id === id ? { ...o, ...updates } : o)),
     }));
   },
 
   deleteItem: (id) => {
+    get().pushHistory();
     set((state) => ({
-      walls: state.walls.filter((w) => w.id !== id),
+      walls: state.walls.filter((w) => w.id !== id && w.roomId !== id),
       rooms: state.rooms.filter((r) => r.id !== id),
-      doors: state.doors.filter((d) => d.id !== id),
-      windows: state.windows.filter((w) => w.id !== id),
+      openings: state.openings.filter((o) => o.id !== id && o.wallId !== id),
       selectedId: state.selectedId === id ? null : state.selectedId,
       selectedType: state.selectedId === id ? null : state.selectedType,
     }));
   },
 
-  moveItem: (id, type, dx, dy) => {
+  moveRoom: (id, dx, dy) => {
     const state = get();
-    const snap = (v) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+    const room = state.rooms.find((r) => r.id === id);
+    if (!room) return;
 
-    if (type === 'wall') {
-      const wall = state.walls.find((w) => w.id === id);
-      if (wall) {
-        get().updateWall(id, {
-          x1: snap(wall.x1 + dx),
-          y1: snap(wall.y1 + dy),
-          x2: snap(wall.x2 + dx),
-          y2: snap(wall.y2 + dy),
-        });
-      }
-    } else if (type === 'room') {
-      const room = state.rooms.find((r) => r.id === id);
-      if (room) {
-        get().updateRoom(id, {
-          x: snap(room.x + dx),
-          y: snap(room.y + dy),
-        });
-      }
-    } else if (type === 'door') {
-      const door = state.doors.find((d) => d.id === id);
-      if (door) {
-        get().updateDoor(id, {
-          x: snap(door.x + dx),
-          y: snap(door.y + dy),
-        });
-      }
-    } else if (type === 'window') {
-      const win = state.windows.find((w) => w.id === id);
-      if (win) {
-        get().updateWindow(id, {
-          x: snap(win.x + dx),
-          y: snap(win.y + dy),
-        });
-      }
-    }
+    const snappedDx = state.snapToGrid(dx);
+    const snappedDy = state.snapToGrid(dy);
+
+    get().pushHistory();
+    set((state) => ({
+      rooms: state.rooms.map((r) => 
+        r.id === id ? { ...r, x: r.x + snappedDx, y: r.y + snappedDy } : r
+      ),
+      walls: state.walls.map((w) =>
+        w.roomId === id 
+          ? { ...w, x1: w.x1 + snappedDx, y1: w.y1 + snappedDy, x2: w.x2 + snappedDx, y2: w.y2 + snappedDy }
+          : w
+      ),
+    }));
   },
 
-  setUploadedImage: (image) => set({ uploadedImage: image }),
-  clearUploadedImage: () => set({ uploadedImage: null }),
+  moveOpening: (id, newOffset) => {
+    const state = get();
+    const opening = state.openings.find((o) => o.id === id);
+    if (!opening) return;
 
-  clearAll: () => set({
-    walls: [],
-    rooms: [],
-    doors: [],
-    windows: [],
-    selectedId: null,
-    selectedType: null,
-  }),
+    const clampedOffset = Math.max(0.1, Math.min(0.9, newOffset));
+    state.updateOpening(id, { offset: clampedOffset });
+  },
+
+  getWallById: (id) => get().walls.find((w) => w.id === id),
+  getRoomById: (id) => get().rooms.find((r) => r.id === id),
+  getOpeningById: (id) => get().openings.find((o) => o.id === id),
 
   getWallLength: (wall) => {
     return Math.sqrt(Math.pow(wall.x2 - wall.x1, 2) + Math.pow(wall.y2 - wall.y1, 2));
   },
 
   getRoomArea: (room) => {
-    return ((room.width / GRID_SIZE) * (room.height / GRID_SIZE)).toFixed(1);
+    const widthM = room.width / METERS_TO_PIXELS;
+    const heightM = room.height / METERS_TO_PIXELS;
+    return (widthM * heightM).toFixed(2);
+  },
+
+  clearAll: () => {
+    get().pushHistory();
+    set({
+      walls: [],
+      rooms: [],
+      openings: [],
+      selectedId: null,
+      selectedType: null,
+    });
+  },
+
+  exportToJSON: () => {
+    const state = get();
+    return JSON.stringify({
+      walls: state.walls,
+      rooms: state.rooms,
+      openings: state.openings,
+      gridSize: GRID_SIZE,
+      exportedAt: new Date().toISOString(),
+    }, null, 2);
+  },
+
+  importFromJSON: (jsonString) => {
+    try {
+      const data = JSON.parse(jsonString);
+      set({
+        walls: data.walls || [],
+        rooms: data.rooms || [],
+        openings: data.openings || [],
+        selectedId: null,
+        selectedType: null,
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to import JSON:', e);
+      return false;
+    }
   },
 }));
 
 export default useFloorPlanStore;
-export { GRID_SIZE };
+export { GRID_SIZE, WALL_THICKNESS };
