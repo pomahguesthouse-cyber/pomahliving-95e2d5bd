@@ -299,8 +299,13 @@ const FloorCanvas = () => {
 
   const handleDoubleClick = (e) => {
     if (activeTool === 'wall' && isDrawingWall) {
-      const newAreaId = finishWallDrawing();
-      if (newAreaId) setSelected(newAreaId, 'area');
+      try {
+        const newAreaId = finishWallDrawing();
+        if (newAreaId) setSelected(newAreaId, 'area');
+      } catch (error) {
+        console.error('Error finishing wall drawing (double click):', error);
+        setActiveTool('select');
+      }
     }
   };
 

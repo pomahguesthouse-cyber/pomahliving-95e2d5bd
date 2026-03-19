@@ -129,77 +129,85 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   finishWallDrawing: () => {
-    const { currentWallPoints } = get();
-    if (currentWallPoints.length < 2) {
+    try {
+      const { currentWallPoints } = get();
+      if (currentWallPoints.length < 2) {
+        set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
+        return null;
+      }
+
+      const firstPoint = currentWallPoints[0];
+      const lastPoint = currentWallPoints[currentWallPoints.length - 1];
+      const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
+      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= GRID_SIZE;
+
+      // If the curve closes, snap the last point to the first to ensure a perfect loop.
+      const points = isClosedLoop
+        ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
+        : currentWallPoints;
+
+      const newWalls = [];
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (Math.abs(dx) >= GRID_SIZE || Math.abs(dy) >= GRID_SIZE) {
+          newWalls.push({
+            id: nanoid(),
+            x1: p1.x,
+            y1: p1.y,
+            x2: p2.x,
+            y2: p2.y,
+            thickness: WALL_THICKNESS,
+            height: WALL_HEIGHT,
+            color: '#374151',
+          });
+        }
+      }
+
+      let filledAreaPoints = null;
+      let areaBounds = null;
+      if (isClosedLoop) {
+        filledAreaPoints = points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
+        if (filledAreaPoints.length >= 3) {
+          areaBounds = getBoundingBox(filledAreaPoints);
+        }
+      }
+
+      const newAreaId = isClosedLoop ? nanoid() : null;
+
+      if (newWalls.length > 0 || (isClosedLoop && areaBounds)) {
+        set((state) => ({
+          walls: isClosedLoop ? state.walls : [...state.walls, ...newWalls],
+          filledAreas: isClosedLoop && areaBounds
+            ? [
+                ...state.filledAreas,
+                {
+                  id: newAreaId,
+                  points: filledAreaPoints,
+                  ...areaBounds,
+                  fill: 'rgba(59,130,246,0.12)',
+                  stroke: '#2563eb',
+                },
+              ]
+            : state.filledAreas,
+          isDrawingWall: false,
+          currentWallPoints: [],
+          previewWallPoints: [],
+          activeTool: 'select',
+        }));
+        get()._pushHistory();
+        return newAreaId;
+      }
+
       set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
       return null;
+    } catch (error) {
+      console.error('Error finishing wall drawing:', error);
+      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+      return null;
     }
-
-    const firstPoint = currentWallPoints[0];
-    const lastPoint = currentWallPoints[currentWallPoints.length - 1];
-    const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
-    const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= GRID_SIZE;
-
-    // If the curve closes, snap the last point to the first to ensure a perfect loop.
-    const points = isClosedLoop
-      ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
-      : currentWallPoints;
-
-    const newWalls = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      if (Math.abs(dx) >= GRID_SIZE || Math.abs(dy) >= GRID_SIZE) {
-        newWalls.push({
-          id: nanoid(),
-          x1: p1.x,
-          y1: p1.y,
-          x2: p2.x,
-          y2: p2.y,
-          thickness: WALL_THICKNESS,
-          height: WALL_HEIGHT,
-          color: '#374151',
-        });
-      }
-    }
-
-    let filledAreaPoints = null;
-    let areaBounds = null;
-    if (isClosedLoop) {
-      filledAreaPoints = points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
-      areaBounds = getBoundingBox(filledAreaPoints);
-    }
-
-    const newAreaId = isClosedLoop ? nanoid() : null;
-
-    if (newWalls.length > 0 || isClosedLoop) {
-      set((state) => ({
-        walls: isClosedLoop ? state.walls : [...state.walls, ...newWalls],
-        filledAreas: isClosedLoop
-          ? [
-              ...state.filledAreas,
-              {
-                id: newAreaId,
-                points: filledAreaPoints,
-                ...areaBounds,
-                fill: 'rgba(59,130,246,0.12)',
-                stroke: '#2563eb',
-              },
-            ]
-          : state.filledAreas,
-        isDrawingWall: false,
-        currentWallPoints: [],
-        previewWallPoints: [],
-        activeTool: 'select',
-      }));
-      get()._pushHistory();
-      return newAreaId;
-    }
-
-    set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
-    return null;
   },
 
   cancelWallDrawing: () => {
