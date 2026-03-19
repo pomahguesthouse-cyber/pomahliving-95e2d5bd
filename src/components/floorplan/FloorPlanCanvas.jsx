@@ -24,6 +24,10 @@ const FloorPlanCanvas = () => {
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
+    // wall-drawing state/actions
+    isDrawingWall, currentWallPoints, previewWallPoints,
+    startWallDrawing, addWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
+    updateWallPoint, insertWallPoint,
   } = useFloorPlanStore();
 
   const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
