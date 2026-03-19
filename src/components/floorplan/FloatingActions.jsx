@@ -6,33 +6,30 @@ const FloatingActions = ({ x, y, selectedId }) => {
 
   return (
     <div
-      className="absolute z-50 flex items-center gap-1 bg-white rounded-xl shadow-lg border border-gray-200 px-2 py-1.5 pointer-events-auto"
+      className="absolute z-50 flex items-center gap-0.5 bg-white/95 backdrop-blur rounded-lg shadow-lg border border-gray-200 p-1 pointer-events-auto"
       style={{ left: x, top: Math.max(8, y), transform: 'translateX(-50%)' }}
     >
       <button
         onClick={() => setShowText(!showText)}
-        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors ${showText ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+        className={`p-1.5 rounded transition-colors ${showText ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
         title="Toggle Text"
       >
-        <Type size={14} />
-        <span className="text-[10px] font-medium">Toggle Text</span>
+        <Type size={13} />
       </button>
       <button
         onClick={() => setShowDimensions(!showDimensions)}
-        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors ${showDimensions ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
-        title="Toggle Ukuran"
+        className={`p-1.5 rounded transition-colors ${showDimensions ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
+        title="Toggle Dimension"
       >
-        <Ruler size={14} />
-        <span className="text-[10px] font-medium">Toggle Ukuran</span>
+        <Ruler size={13} />
       </button>
-      <div className="w-px h-5 bg-gray-200" />
+      <div className="w-px h-4 bg-gray-200 mx-0.5" />
       <button
         onClick={() => deleteItem(selectedId)}
-        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 flex items-center gap-1 transition-colors"
-        title="Hapus Item"
+        className="p-1.5 rounded text-red-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+        title="Delete"
       >
-        <Trash2 size={14} />
-        <span className="text-[10px] font-medium">Hapus Item</span>
+        <Trash2 size={13} />
       </button>
     </div>
   );

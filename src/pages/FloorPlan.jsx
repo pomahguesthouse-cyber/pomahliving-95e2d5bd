@@ -161,7 +161,7 @@ const FloorPlan = () => {
             {[
               ['V', 'Select'], ['R', 'Room'], ['W', 'Wall'], ['D', 'Door'],
               ['N', 'Window'], ['Del', 'Delete'], ['Scroll', 'Zoom'],
-              ['DblClick', 'Edit Nama'], ['Handles', 'Resize'],
+              ['DblClick', 'Edit/Resize'],
             ].map(([key, label]) => (
               <div key={key} className="flex items-center gap-1.5 text-xs text-gray-500">
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono text-gray-600 text-[10px] font-semibold">{key}</kbd>

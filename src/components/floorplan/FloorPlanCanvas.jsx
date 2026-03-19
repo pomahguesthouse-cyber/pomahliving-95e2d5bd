@@ -14,6 +14,7 @@ const FloorPlanCanvas = () => {
   const [resizingRoom, setResizingRoom] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
+  const [roomEditMode, setRoomEditMode] = useState(false);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
@@ -77,20 +78,32 @@ const FloorPlanCanvas = () => {
         setResizingRoom(id);
         setResizeHandle(handle);
         setResizeStart({ x: point.x, y: point.y });
+        setRoomEditMode(true);
       } else if (id && type) {
-        if (editingRoomId) {
-          updateRoom(editingRoomId, { name: editingRoomName });
-          setEditingRoomId(null);
+        if (e.detail === 2) {
+          if (editingRoomId) {
+            updateRoom(editingRoomId, { name: editingRoomName });
+            setEditingRoomId(null);
+          }
+          setSelected(id, type);
+          setRoomEditMode(true);
+          setIsDragging(true);
+          setDragStart({ x: point.x, y: point.y });
+        } else {
+          if (editingRoomId) {
+            updateRoom(editingRoomId, { name: editingRoomName });
+            setEditingRoomId(null);
+          }
+          setSelected(id, type);
+          setRoomEditMode(false);
         }
-        setSelected(id, type);
-        setIsDragging(true);
-        setDragStart({ x: point.x, y: point.y });
       } else {
         if (editingRoomId) {
           updateRoom(editingRoomId, { name: editingRoomName });
           setEditingRoomId(null);
         }
         setSelected(null, null);
+        setRoomEditMode(false);
       }
     }
   };
@@ -258,6 +271,7 @@ const FloorPlanCanvas = () => {
       }
       if (e.key === 'Escape') {
         setSelected(null, null);
+        setRoomEditMode(false);
         setActiveTool('select');
       }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
@@ -270,8 +284,8 @@ const FloorPlanCanvas = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, deleteItem, setSelected, setActiveTool]);
 
-  // Dimension label component
-  const DimensionLabel = ({ x1, y1, x2, y2, offset = 16 }) => {
+  // Dimension label component - smaller
+  const DimensionLabel = ({ x1, y1, x2, y2, offset = 10 }) => {
     const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     if (len < GRID_SIZE) return null;
     const mx = (x1 + x2) / 2;
@@ -281,18 +295,18 @@ const FloorPlanCanvas = () => {
       <g className="pointer-events-none">
         {/* tick marks */}
         <line x1={x1} y1={y1 - (isHorizontal ? offset : 0)} x2={x1} y2={y1 + (isHorizontal ? offset : 0)}
-          stroke="#6b7280" strokeWidth={0.8} />
+          stroke="#6b7280" strokeWidth={0.5} />
         <line x1={x2} y1={y2 - (isHorizontal ? offset : 0)} x2={x2} y2={y2 + (isHorizontal ? offset : 0)}
-          stroke="#6b7280" strokeWidth={0.8} />
+          stroke="#6b7280" strokeWidth={0.5} />
         {/* dimension line */}
         <line x1={x1} y1={isHorizontal ? y1 - offset : y1} x2={x2} y2={isHorizontal ? y2 - offset : y2}
-          stroke="#6b7280" strokeWidth={0.8} />
+          stroke="#6b7280" strokeWidth={0.5} />
         {/* label bg */}
-        <rect x={mx - 18} y={(isHorizontal ? my - offset : my) - 8} width={36} height={14}
-          rx={3} fill="white" stroke="#d1d5db" strokeWidth={0.5} />
-        <text x={mx} y={(isHorizontal ? my - offset : my) + 3}
-          textAnchor="middle" fontSize={9} fill="#374151" fontFamily="monospace">
-          {(len / GRID_SIZE).toFixed(2)}
+        <rect x={mx - 14} y={(isHorizontal ? my - offset : my) - 5} width={28} height={10}
+          rx={2} fill="white" stroke="#d1d5db" strokeWidth={0.3} />
+        <text x={mx} y={(isHorizontal ? my - offset : my) + 2}
+          textAnchor="middle" fontSize={7} fill="#374151" fontFamily="monospace">
+          {(len / GRID_SIZE).toFixed(1)}m
         </text>
       </g>
     );
@@ -394,10 +408,10 @@ const FloorPlanCanvas = () => {
               <>
                 {isEditing ? (
                   <foreignObject
-                    x={room.x + room.width / 2 - 60}
-                    y={room.y + room.height / 2 - 24}
-                    width={120}
-                    height={32}
+                    x={room.x + room.width / 2 - 50}
+                    y={room.y + room.height / 2 - 18}
+                    width={100}
+                    height={28}
                   >
                     <input
                       type="text"
@@ -416,15 +430,15 @@ const FloorPlanCanvas = () => {
                         setEditingRoomId(null);
                       }}
                       autoFocus
-                      className="w-full px-2 py-1 text-sm text-center bg-white border-2 border-blue-500 rounded-lg outline-none shadow-md"
-                      style={{ fontSize: '13px', fontWeight: 600 }}
+                      className="w-full px-2 py-1 text-xs text-center bg-white border-2 border-blue-500 rounded outline-none shadow"
+                      style={{ fontSize: '11px', fontWeight: 600 }}
                     />
                   </foreignObject>
                 ) : (
                   <text
-                    x={room.x + room.width / 2} y={room.y + room.height / 2 - 14}
+                    x={room.x + room.width / 2} y={room.y + room.height / 2 - 10}
                     textAnchor="middle" dominantBaseline="middle"
-                    fontSize={13} fontWeight="600" fill="#1f2937"
+                    fontSize={11} fontWeight="600" fill="#1f2937"
                     className="select-none pointer-events-none cursor-text"
                     onDoubleClick={() => {
                       setEditingRoomId(room.id);
@@ -435,17 +449,17 @@ const FloorPlanCanvas = () => {
                   </text>
                 )}
                 <text
-                  x={room.x + room.width / 2} y={room.y + room.height / 2 + 2}
+                  x={room.x + room.width / 2} y={room.y + room.height / 2 + 4}
                   textAnchor="middle" dominantBaseline="middle"
-                  fontSize={11} fill="#6b7280" fontFamily="monospace"
+                  fontSize={9} fill="#6b7280" fontFamily="monospace"
                   className="select-none pointer-events-none"
                 >
                   {w.toFixed(1)} x {h.toFixed(1)}m
                 </text>
                 <text
-                  x={room.x + room.width / 2} y={room.y + room.height / 2 + 16}
+                  x={room.x + room.width / 2} y={room.y + room.height / 2 + 14}
                   textAnchor="middle" dominantBaseline="middle"
-                  fontSize={10} fill="#9ca3af" fontFamily="monospace"
+                  fontSize={8} fill="#9ca3af" fontFamily="monospace"
                   className="select-none pointer-events-none"
                 >
                   {area} m²
@@ -453,33 +467,33 @@ const FloorPlanCanvas = () => {
               </>
             )}
             {/* Dimension lines for selected room */}
-            {isSelected && showDimensions && (
+            {isSelected && roomEditMode && showDimensions && (
               <>
-                <DimensionLabel x1={room.x} y1={room.y - 14} x2={room.x + room.width} y2={room.y - 14} />
-                <DimensionLabel x1={room.x + room.width + 14} y1={room.y} x2={room.x + room.width + 14} y2={room.y + room.height} />
+                <DimensionLabel x1={room.x} y1={room.y - 10} x2={room.x + room.width} y2={room.y - 10} />
+                <DimensionLabel x1={room.x + room.width + 10} y1={room.y} x2={room.x + room.width + 10} y2={room.y + room.height} />
               </>
             )}
-            {/* Resize handles for selected room */}
-            {isSelected && !isEditing && (
+            {/* Resize handles - show on double click / edit mode */}
+            {isSelected && roomEditMode && !isEditing && (
               <>
                 {/* Corner handles */}
-                <rect data-id={room.id} data-handle="nw" x={room.x - 6} y={room.y - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-nw-resize" />
-                <rect data-id={room.id} data-handle="ne" x={room.x + room.width - 6} y={room.y - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-ne-resize" />
-                <rect data-id={room.id} data-handle="sw" x={room.x - 6} y={room.y + room.height - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-sw-resize" />
-                <rect data-id={room.id} data-handle="se" x={room.x + room.width - 6} y={room.y + room.height - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-se-resize" />
+                <rect data-id={room.id} data-handle="nw" x={room.x - 5} y={room.y - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-nw-resize" />
+                <rect data-id={room.id} data-handle="ne" x={room.x + room.width - 5} y={room.y - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-ne-resize" />
+                <rect data-id={room.id} data-handle="sw" x={room.x - 5} y={room.y + room.height - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-sw-resize" />
+                <rect data-id={room.id} data-handle="se" x={room.x + room.width - 5} y={room.y + room.height - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-se-resize" />
                 {/* Edge handles */}
-                <rect data-id={room.id} data-handle="n" x={room.x + room.width / 2 - 6} y={room.y - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-n-resize" />
-                <rect data-id={room.id} data-handle="s" x={room.x + room.width / 2 - 6} y={room.y + room.height - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-s-resize" />
-                <rect data-id={room.id} data-handle="w" x={room.x - 6} y={room.y + room.height / 2 - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-w-resize" />
-                <rect data-id={room.id} data-handle="e" x={room.x + room.width - 6} y={room.y + room.height / 2 - 6} width={12} height={12}
-                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-e-resize" />
+                <rect data-id={room.id} data-handle="n" x={room.x + room.width / 2 - 5} y={room.y - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-n-resize" />
+                <rect data-id={room.id} data-handle="s" x={room.x + room.width / 2 - 5} y={room.y + room.height - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-s-resize" />
+                <rect data-id={room.id} data-handle="w" x={room.x - 5} y={room.y + room.height / 2 - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-w-resize" />
+                <rect data-id={room.id} data-handle="e" x={room.x + room.width - 5} y={room.y + room.height / 2 - 5} width={10} height={10}
+                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-e-resize" />
               </>
             )}
           </g>
@@ -511,11 +525,11 @@ const FloorPlanCanvas = () => {
             />
             {isSelected && (
               <>
-                <circle cx={wall.x1} cy={wall.y1} r={6} fill="#2563eb" stroke="white" strokeWidth={2} />
-                <circle cx={wall.x2} cy={wall.y2} r={6} fill="#2563eb" stroke="white" strokeWidth={2} />
+                <circle cx={wall.x1} cy={wall.y1} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
+                <circle cx={wall.x2} cy={wall.y2} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
               </>
             )}
-            {showDimensions && length > 30 && (
+            {showDimensions && length > 20 && (
               <DimensionLabel x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2} />
             )}
           </g>
