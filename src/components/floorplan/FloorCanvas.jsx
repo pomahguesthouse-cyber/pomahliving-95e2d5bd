@@ -4,7 +4,7 @@ import FloatingToolbar from './ui/FloatingToolbar';
 import GridLayer from './canvas/GridLayer';
 import FilledAreaLayer from './canvas/FilledAreaLayer';
 import RoomLayer from './canvas/RoomLayer';
-import WallLayer from './canvas/WallLayer';
+import AreaLayer from './canvas/AreaLayer';
 import OpeningLayer from './canvas/OpeningLayer';
 import SelectionLayer from './canvas/SelectionLayer';
 
@@ -466,7 +466,7 @@ const FloorCanvas = () => {
             }}
           />
 
-          <WallLayer
+          <AreaLayer
             walls={walls}
             selectedId={selectedId}
             showDimensions={showDimensions}
