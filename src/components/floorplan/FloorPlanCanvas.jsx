@@ -16,12 +16,15 @@ const FloorPlanCanvas = () => {
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
   const [wallPointIndex, setWallPointIndex] = useState(null);
+  const [hoveredId, setHoveredId] = useState(null);
+  const [hoveredType, setHoveredType] = useState(null);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
-    uploadedImage, showText, showDimensions,
+    uploadedImage, showText, showDimensions, snapEnabled, gridSize,
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
+    undo, redo,
     addOpening, setLandBoundary, addOutdoorElement,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
     // wall-drawing state/actions
@@ -30,7 +33,10 @@ const FloorPlanCanvas = () => {
     updateWallPoint, insertWallPoint,
   } = useFloorPlanStore();
 
-  const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
+  const snapToGrid = (value) => {
+    if (!snapEnabled) return value;
+    return Math.round(value / gridSize) * gridSize;
+  };
 
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
@@ -159,6 +165,18 @@ const FloorPlanCanvas = () => {
   const handleMouseMove = (e) => {
     const point = getCanvasPoint(e);
     setMousePos(point);
+
+    const targetId = e.target.getAttribute?.('data-id');
+    const targetType = e.target.getAttribute?.('data-type');
+    if (targetId || targetType) {
+      if (targetId !== hoveredId || targetType !== hoveredType) {
+        setHoveredId(targetId);
+        setHoveredType(targetType);
+      }
+    } else if (hoveredId || hoveredType) {
+      setHoveredId(null);
+      setHoveredType(null);
+    }
 
     if (isPanning && panStart) {
       setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
@@ -322,6 +340,8 @@ const FloorPlanCanvas = () => {
 
     setIsDragging(false);
     setDragStart(null);
+    setHoveredId(null);
+    setHoveredType(null);
     if (isDragging && selectedId) {
       useFloorPlanStore.getState()._pushHistory();
     }

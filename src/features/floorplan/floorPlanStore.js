@@ -38,6 +38,8 @@ const useFloorPlanStore = create((set, get) => ({
   activeTool: 'select',
   gridVisible: true,
   snapEnabled: true,
+  gridSize: GRID_SIZE,
+  gridSizeOptions: [2, 4, 20],
   showText: true,
   showDimensions: true,
   showLandDimensions: true,
@@ -46,6 +48,11 @@ const useFloorPlanStore = create((set, get) => ({
   uploadedImage: null,
   history: [],
   historyIndex: -1,
+  snap: (value) => {
+    const { snapEnabled, gridSize } = get();
+    if (!snapEnabled) return value;
+    return Math.round(value / gridSize) * gridSize;
+  },
   
   // Freehand wall drawing state
   isDrawingWall: false,
@@ -107,8 +114,9 @@ const useFloorPlanStore = create((set, get) => ({
 
   // Freehand wall drawing
   startWallDrawing: (x, y) => {
-    const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
     set({
       isDrawingWall: true,
       currentWallPoints: [{ x: snappedX, y: snappedY }],
@@ -117,8 +125,9 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   addWallPoint: (x, y) => {
-    const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
     set((state) => ({
       currentWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
       previewWallPoints: [...state.previewWallPoints, { x: snappedX, y: snappedY }],
@@ -126,8 +135,9 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   updateWallPreview: (x, y) => {
-    const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
     set({ previewWallPoints: [...get().currentWallPoints, { x: snappedX, y: snappedY }] });
   },
 
@@ -142,7 +152,8 @@ const useFloorPlanStore = create((set, get) => ({
       const firstPoint = currentWallPoints[0];
       const lastPoint = currentWallPoints[currentWallPoints.length - 1];
       const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
-      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= GRID_SIZE;
+      const { gridSize } = get();
+      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= gridSize;
 
       // If the curve closes, snap the last point to the first to ensure a perfect loop.
       const points = isClosedLoop
@@ -155,7 +166,7 @@ const useFloorPlanStore = create((set, get) => ({
         const p2 = points[i + 1];
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
-        if (Math.abs(dx) >= GRID_SIZE || Math.abs(dy) >= GRID_SIZE) {
+        if (Math.abs(dx) >= gridSize || Math.abs(dy) >= gridSize) {
           newWalls.push({
             id: nanoid(),
             x1: p1.x,
@@ -245,12 +256,13 @@ const useFloorPlanStore = create((set, get) => ({
 
   addWall: (x1, y1, x2, y2) => {
     const id = nanoid();
+    const snap = get().snap;
     const wall = {
       id,
-      x1: Math.round(x1 / GRID_SIZE) * GRID_SIZE,
-      y1: Math.round(y1 / GRID_SIZE) * GRID_SIZE,
-      x2: Math.round(x2 / GRID_SIZE) * GRID_SIZE,
-      y2: Math.round(y2 / GRID_SIZE) * GRID_SIZE,
+      x1: snap(x1),
+      y1: snap(y1),
+      x2: snap(x2),
+      y2: snap(y2),
       thickness: WALL_THICKNESS,
       height: WALL_HEIGHT,
       color: '#374151',
@@ -288,13 +300,14 @@ const useFloorPlanStore = create((set, get) => ({
 
   addRoom: (x, y, width, height, name) => {
     const id = nanoid();
+    const snap = get().snap;
     const room = {
       id,
       name: name || 'Ruangan',
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
-      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
+      width: snap(width),
+      height: snap(height),
       roomHeight: 3.2,
       fill: '#f3f4f6',
       stroke: '#9ca3af',
@@ -306,10 +319,11 @@ const useFloorPlanStore = create((set, get) => ({
 
   addDoor: (x, y, rotation = 0) => {
     const id = nanoid();
+    const snap = get().snap;
     const door = {
       id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
       width: 90,
       rotation,
       type: 'door',
@@ -321,10 +335,11 @@ const useFloorPlanStore = create((set, get) => ({
 
   addWindow: (x, y, rotation = 0) => {
     const id = nanoid();
+    const snap = get().snap;
     const win = {
       id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
       width: 120,
       rotation,
       type: 'window',
@@ -336,10 +351,11 @@ const useFloorPlanStore = create((set, get) => ({
 
   addOpening: (x, y, rotation = 0) => {
     const id = nanoid();
+    const snap = get().snap;
     const opening = {
       id,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
       width: 100,
       rotation,
       type: 'opening',
@@ -350,12 +366,13 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   setLandBoundary: (x, y, width, height) => {
+    const snap = get().snap;
     const boundary = {
       id: 'land-boundary',
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
-      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
+      width: snap(width),
+      height: snap(height),
     };
     set({ landBoundary: boundary });
     get()._pushHistory();
@@ -369,6 +386,7 @@ const useFloorPlanStore = create((set, get) => ({
 
   addOutdoorElement: (type, x, y, width, height) => {
     const id = nanoid();
+    const snap = get().snap;
     const colors = {
       garden: { fill: '#dcfce7', stroke: '#86efac', label: 'Taman' },
       road: { fill: '#e5e7eb', stroke: '#9ca3af', label: 'Jalan' },
@@ -379,10 +397,10 @@ const useFloorPlanStore = create((set, get) => ({
       id,
       type,
       label: config.label,
-      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
-      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
-      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+      x: snap(x),
+      y: snap(y),
+      width: snap(width),
+      height: snap(height),
       fill: config.fill,
       stroke: config.stroke,
     };
@@ -393,9 +411,10 @@ const useFloorPlanStore = create((set, get) => ({
 
   addFilledArea: (points, options = {}) => {
     const id = nanoid();
+    const snap = get().snap;
     const area = {
       id,
-      points: points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+      points: points.map((p) => ({ x: snap(p.x), y: snap(p.y) })),
       fill: options.fill || 'rgba(59,130,246,0.12)',
       stroke: options.stroke || '#2563eb',
     };
@@ -496,7 +515,7 @@ const useFloorPlanStore = create((set, get) => ({
 
   moveItem: (id, type, dx, dy) => {
     const state = get();
-    const snap = (v) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+    const snap = get().snap;
 
     if (type === 'wall') {
       const wall = state.walls.find((w) => w.id === id);
@@ -578,7 +597,8 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   getRoomArea: (room) => {
-    return ((room.width / GRID_SIZE) * (room.height / GRID_SIZE)).toFixed(2);
+    const { gridSize } = get();
+    return ((room.width / gridSize) * (room.height / gridSize)).toFixed(2);
   },
 
   exportJSON: () => {
