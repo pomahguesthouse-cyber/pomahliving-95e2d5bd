@@ -53,7 +53,9 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
   return (
     <g>
       {areas.map((area) => {
-        const points = area.points;
+        const points = Array.isArray(area.points) ? area.points : [];
+        if (points.length < 3) return null; // Need at least 3 points to form a polygon
+
         const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
         const isSelected = selectedId === area.id;
 
