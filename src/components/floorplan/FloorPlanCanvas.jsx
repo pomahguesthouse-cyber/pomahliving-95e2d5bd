@@ -49,6 +49,26 @@ const FloorPlanCanvas = () => {
     };
   }, [zoom, panOffset]);
 
+  const calcPolyLength = (points) => {
+    if (!points || points.length < 2) return 0;
+    return points.reduce((sum, p, i) => {
+      if (i === 0) return 0;
+      const prev = points[i - 1];
+      return sum + Math.hypot(p.x - prev.x, p.y - prev.y);
+    }, 0);
+  };
+
+  const calcPolygonArea = (points) => {
+    if (!points || points.length < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % points.length];
+      area += p1.x * p2.y - p2.x * p1.y;
+    }
+    return Math.abs(area) / 2;
+  };
+
   const handleMouseDown = (e) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
@@ -69,8 +89,19 @@ const FloorPlanCanvas = () => {
         return;
       }
 
-      // Avoid adding duplicated point on double-click (handled separately).
       if (isDrawingWall) {
+        // If click is close to the first point, finish the drawing (close loop).
+        if (currentWallPoints.length >= 3) {
+          const firstPoint = currentWallPoints[0];
+          const distToStart = Math.hypot(firstPoint.x - point.x, firstPoint.y - point.y);
+          if (distToStart <= GRID_SIZE * 0.75) {
+            const newAreaId = finishWallDrawing();
+            if (newAreaId) setSelected(newAreaId, 'area');
+            return;
+          }
+        }
+
+        // Avoid adding duplicated point on double-click (finish is handled above or via double-click handler)
         if (e.detail !== 2) {
           addWallPoint(snappedX, snappedY);
         }
@@ -705,6 +736,26 @@ const FloorPlanCanvas = () => {
       if (!points || points.length < 2) return null;
 
       const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
+      const lengthPx = calcPolyLength(points);
+      const lengthM = (lengthPx / GRID_SIZE * METERS_PER_GRID).toFixed(2);
+
+      const firstPoint = points[0];
+      const lastPoint = points[points.length - 1];
+      const closeToStart = points.length >= 3 && Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y) <= GRID_SIZE * 0.75;
+
+      const lastSegmentMid = () => {
+        const a = points[points.length - 2];
+        const b = points[points.length - 1];
+        return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      };
+
+      const lastSegmentLengthM = points.length >= 2
+        ? (Math.hypot(lastPoint.x - points[points.length - 2].x, lastPoint.y - points[points.length - 2].y) / GRID_SIZE * METERS_PER_GRID).toFixed(2)
+        : '0.00';
+
+      const areaM2 = points.length >= 3 ?
+        ((calcPolygonArea([...points, firstPoint]) / GRID_SIZE / GRID_SIZE) * METERS_PER_GRID * METERS_PER_GRID).toFixed(2)
+        : null;
 
       return (
         <g>
@@ -731,6 +782,70 @@ const FloorPlanCanvas = () => {
               className="cursor-move"
             />
           ))}
+
+          {showDimensions && (
+            <>
+              <text
+                x={lastSegmentMid().x}
+                y={lastSegmentMid().y - 10}
+                textAnchor="middle"
+                fontSize={9}
+                fill="#1f2937"
+                fontFamily="monospace"
+                className="pointer-events-none"
+              >
+                {lastSegmentLengthM}m
+              </text>
+
+              <text
+                x={lastPoint.x + 10}
+                y={lastPoint.y + 20}
+                fontSize={9}
+                fill="#475569"
+                fontFamily="monospace"
+                className="pointer-events-none"
+              >
+                Total: {lengthM}m
+              </text>
+
+              {areaM2 && (
+                <text
+                  x={firstPoint.x + 10}
+                  y={firstPoint.y - 12}
+                  fontSize={9}
+                  fill="#475569"
+                  fontFamily="monospace"
+                  className="pointer-events-none"
+                >
+                  Area: {areaM2} m²
+                </text>
+              )}
+
+              {closeToStart && (
+                <g>
+                  <circle
+                    cx={firstPoint.x}
+                    cy={firstPoint.y}
+                    r={8}
+                    fill="rgba(37,99,235,0.2)"
+                    stroke="#2563eb"
+                    strokeWidth={1.5}
+                  />
+                  <text
+                    x={firstPoint.x}
+                    y={firstPoint.y - 12}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fill="#2563eb"
+                    fontFamily="monospace"
+                    className="pointer-events-none"
+                  >
+                    Tap untuk selesai
+                  </text>
+                </g>
+              )}
+            </>
+          )}
         </g>
       );
     }

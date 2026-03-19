@@ -46,7 +46,29 @@ const PropertiesPanel = memo(() => {
     selectedId, selectedType,
     updateWall, updateRoom, updateDoor, updateWindow, updateOpening,
     updateOutdoorElement, updateLandBoundary, updateFilledArea, deleteItem,
+    isDrawingWall, currentWallPoints, previewWallPoints,
+    showDimensions,
   } = useFloorPlanStore();
+
+  const calcLength = (points) => {
+    if (!points || points.length < 2) return 0;
+    return points.reduce((sum, p, i) => {
+      if (i === 0) return 0;
+      const prev = points[i - 1];
+      return sum + Math.hypot(p.x - prev.x, p.y - prev.y);
+    }, 0);
+  };
+
+  const calcArea = (points) => {
+    if (!points || points.length < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % points.length];
+      area += p1.x * p2.y - p2.x * p1.y;
+    }
+    return Math.abs(area) / 2;
+  };
 
   const PX_PER_M = GRID_SIZE / METERS_PER_GRID;
 
@@ -66,6 +88,42 @@ const PropertiesPanel = memo(() => {
   const item = getItem();
 
   if (!item) {
+    const isDrawingInfo = isDrawingWall && currentWallPoints && currentWallPoints.length > 0;
+
+    if (isDrawingInfo) {
+      const points = previewWallPoints && previewWallPoints.length > 0 ? previewWallPoints : currentWallPoints;
+      const lengthM = (calcLength(points) / GRID_SIZE * METERS_PER_GRID).toFixed(2);
+      const areaM2 = points.length >= 3
+        ? ((calcArea([...points, points[0]]) / GRID_SIZE / GRID_SIZE) * METERS_PER_GRID * METERS_PER_GRID).toFixed(2)
+        : null;
+
+      if (!showDimensions) {
+        return (
+          <div className="w-72 bg-white border-l border-gray-100 p-5 flex flex-col">
+            <h3 className="text-sm font-semibold text-gray-900 mb-6">Wall Drawing</h3>
+            <div className="flex-1 flex flex-col justify-center gap-3 px-4">
+              <div className="text-sm text-gray-600">Dimensions are hidden</div>
+              <div className="text-xs text-gray-400">Toggle "Show dimensions" to view length and area.</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="w-72 bg-white border-l border-gray-100 p-5 flex flex-col">
+          <h3 className="text-sm font-semibold text-gray-900 mb-6">Wall Drawing</h3>
+          <div className="flex-1 flex flex-col justify-center gap-3 px-4">
+            <div className="text-sm text-gray-600">Points: {points.length}</div>
+            <div className="text-sm text-gray-600">Length: <span className="font-semibold text-gray-800">{lengthM} m</span></div>
+            {areaM2 && (
+              <div className="text-sm text-gray-600">Estimated area: <span className="font-semibold text-gray-800">{areaM2} m²</span></div>
+            )}
+            <div className="text-xs text-gray-400">Click near the start point to finish the loop.</div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="w-72 bg-white border-l border-gray-100 p-5 flex flex-col">
         <h3 className="text-sm font-semibold text-gray-900 mb-6">Properties</h3>
