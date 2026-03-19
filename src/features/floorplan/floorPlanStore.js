@@ -114,10 +114,10 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   finishWallDrawing: () => {
-    const { currentWallPoints, walls } = get();
+    const { currentWallPoints } = get();
     if (currentWallPoints.length < 2) {
       set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
-      return;
+      return null;
     }
 
     const firstPoint = currentWallPoints[0];
@@ -155,11 +155,13 @@ const useFloorPlanStore = create((set, get) => ({
       filledAreaPoints = points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
     }
 
-    if (newWalls.length > 0) {
+    const newAreaId = isClosedLoop ? nanoid() : null;
+
+    if (newWalls.length > 0 || isClosedLoop) {
       set((state) => ({
-        walls: [...state.walls, ...newWalls],
+        walls: isClosedLoop ? state.walls : [...state.walls, ...newWalls],
         filledAreas: isClosedLoop
-          ? [...state.filledAreas, { id: nanoid(), points: filledAreaPoints, fill: 'rgba(59,130,246,0.12)', stroke: '#2563eb' }]
+          ? [...state.filledAreas, { id: newAreaId, points: filledAreaPoints, fill: 'rgba(59,130,246,0.12)', stroke: '#2563eb' }]
           : state.filledAreas,
         isDrawingWall: false,
         currentWallPoints: [],
@@ -167,9 +169,11 @@ const useFloorPlanStore = create((set, get) => ({
         activeTool: 'select',
       }));
       get()._pushHistory();
-    } else {
-      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
+      return newAreaId;
     }
+
+    set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
+    return null;
   },
 
   cancelWallDrawing: () => {
@@ -356,6 +360,13 @@ const useFloorPlanStore = create((set, get) => ({
     get()._pushHistory();
   },
 
+  updateFilledArea: (id, updates) => {
+    set((state) => ({
+      filledAreas: state.filledAreas.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+    }));
+    get()._pushHistory();
+  },
+
   updateDoor: (id, updates) => {
     set((state) => ({
       doors: state.doors.map((d) => (d.id === id ? { ...d, ...updates } : d)),
@@ -438,6 +449,12 @@ const useFloorPlanStore = create((set, get) => ({
       const el = state.outdoorElements.find((e) => e.id === id);
       if (el) {
         get().updateOutdoorElement(id, { x: snap(el.x + dx), y: snap(el.y + dy) }, false);
+      }
+    } else if (type === 'area') {
+      const area = state.filledAreas.find((a) => a.id === id);
+      if (area) {
+        const movedPoints = area.points.map((p) => ({ x: snap(p.x + dx), y: snap(p.y + dy) }));
+        get().updateFilledArea(id, { points: movedPoints });
       }
     } else if (type === 'land-boundary') {
       const lb = state.landBoundary;

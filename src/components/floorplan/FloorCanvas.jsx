@@ -295,7 +295,8 @@ const FloorCanvas = () => {
 
   const handleDoubleClick = (e) => {
     if (activeTool === 'wall' && isDrawingWall) {
-      finishWallDrawing();
+      const newAreaId = finishWallDrawing();
+      if (newAreaId) setSelected(newAreaId, 'area');
     }
   };
 
@@ -325,11 +326,12 @@ const FloorCanvas = () => {
       if (e.key === 'Enter') {
         if (isDrawingWall) {
           e.preventDefault();
-          finishWallDrawing();
+          const newAreaId = finishWallDrawing();
+          if (newAreaId) setSelected(newAreaId, 'area');
           return;
         }
       }
-      
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) deleteItem(selectedId);
         return;
@@ -353,6 +355,34 @@ const FloorCanvas = () => {
     return 'crosshair';
   };
 
+  const getPolygonCentroid = (points) => {
+    if (!points || points.length === 0) return { x: 0, y: 0 };
+    const n = points.length;
+    let area = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let i = 0; i < n; i += 1) {
+      const { x: x0, y: y0 } = points[i];
+      const { x: x1, y: y1 } = points[(i + 1) % n];
+      const cross = x0 * y1 - x1 * y0;
+      area += cross;
+      cx += (x0 + x1) * cross;
+      cy += (y0 + y1) * cross;
+    }
+
+    area *= 0.5;
+    if (area === 0) {
+      const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+      return { x: sum.x / n, y: sum.y / n };
+    }
+
+    return {
+      x: cx / (6 * area),
+      y: cy / (6 * area),
+    };
+  };
+
   const getSelectedScreenPos = () => {
     if (!selectedId) return null;
     let cx = 0, cy = 0;
@@ -367,6 +397,12 @@ const FloorCanvas = () => {
       if (!wall) return null;
       cx = (wall.x1 + wall.x2) / 2;
       cy = Math.min(wall.y1, wall.y2);
+    } else if (selectedType === 'area') {
+      const area = filledAreas.find((a) => a.id === selectedId);
+      if (!area) return null;
+      const centroid = getPolygonCentroid(area.points);
+      cx = centroid.x;
+      cy = centroid.y;
     } else if (selectedType === 'door') {
       const door = doors.find(d => d.id === selectedId);
       if (!door) return null;
@@ -428,7 +464,13 @@ const FloorCanvas = () => {
             <image href={uploadedImage} x={0} y={0} width={800} height={600} opacity={0.3} preserveAspectRatio="xMidYMid meet" />
           )}
 
-          <FilledAreaLayer areas={filledAreas} showText={showText} showDimensions={showDimensions} />
+          <FilledAreaLayer
+            areas={filledAreas}
+            selectedId={selectedId}
+            onAreaClick={(id) => setSelected(id, 'area')}
+            showText={showText}
+            showDimensions={showDimensions}
+          />
 
           <SelectionLayer
             landBoundary={landBoundary}

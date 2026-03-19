@@ -48,12 +48,13 @@ const getPolygonAreaMeters = (points) => {
   return area * scale * scale;
 };
 
-const FilledAreaLayer = memo(({ areas = [], showText = false, showDimensions = false }) => {
+const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = false, showDimensions = false }) => {
   return (
     <g>
       {areas.map((area) => {
         const points = area.points;
         const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
+        const isSelected = selectedId === area.id;
 
         const minX = Math.min(...points.map((p) => p.x));
         const maxX = Math.max(...points.map((p) => p.x));
@@ -69,10 +70,15 @@ const FilledAreaLayer = memo(({ areas = [], showText = false, showDimensions = f
         return (
           <g key={area.id}>
             <polygon
+              data-id={area.id}
+              data-type="area"
               points={pointsStr}
-              fill={area.fill || 'rgba(59,130,246,0.12)'}
-              stroke={area.stroke || '#2563eb'}
-              strokeWidth={2}
+              fill={isSelected ? '#eff6ff' : area.fill || 'rgba(59,130,246,0.12)'}
+              stroke={isSelected ? '#2563eb' : area.stroke || '#9ca3af'}
+              strokeWidth={isSelected ? 2 : 1}
+              strokeDasharray="4,2"
+              className="cursor-move"
+              onClick={() => onAreaClick?.(area.id)}
             />
             {(showText || showDimensions) && (
               <g className="pointer-events-none">
