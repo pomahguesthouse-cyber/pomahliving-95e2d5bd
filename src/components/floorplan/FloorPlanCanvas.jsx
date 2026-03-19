@@ -14,7 +14,6 @@ const FloorPlanCanvas = () => {
   const [resizingRoom, setResizingRoom] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
-  const [roomEditMode, setRoomEditMode] = useState(false);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
@@ -78,32 +77,18 @@ const FloorPlanCanvas = () => {
         setResizingRoom(id);
         setResizeHandle(handle);
         setResizeStart({ x: point.x, y: point.y });
-        setRoomEditMode(true);
       } else if (id && type) {
-        if (e.detail === 2) {
-          if (editingRoomId) {
-            updateRoom(editingRoomId, { name: editingRoomName });
-            setEditingRoomId(null);
-          }
-          setSelected(id, type);
-          setRoomEditMode(true);
-          setIsDragging(true);
-          setDragStart({ x: point.x, y: point.y });
-        } else {
-          if (editingRoomId) {
-            updateRoom(editingRoomId, { name: editingRoomName });
-            setEditingRoomId(null);
-          }
-          setSelected(id, type);
-          setRoomEditMode(false);
+        if (editingRoomId) {
+          updateRoom(editingRoomId, { name: editingRoomName });
+          setEditingRoomId(null);
         }
+        setSelected(id, type);
       } else {
         if (editingRoomId) {
           updateRoom(editingRoomId, { name: editingRoomName });
           setEditingRoomId(null);
         }
         setSelected(null, null);
-        setRoomEditMode(false);
       }
     }
   };
@@ -350,9 +335,9 @@ const FloorPlanCanvas = () => {
               x={el.x} y={el.y} width={el.width} height={el.height}
               fill={el.fill}
               stroke={isSelected ? '#2563eb' : el.stroke}
-              strokeWidth={isSelected ? 2.5 : 1.5}
-              strokeDasharray={el.type === 'road' ? 'none' : '8,4'}
-              rx={4}
+              strokeWidth={isSelected ? 2 : 1}
+              strokeDasharray={el.type === 'road' ? 'none' : '4,2'}
+              rx={0}
               className="cursor-move"
             />
             {showText && (
@@ -395,8 +380,8 @@ const FloorPlanCanvas = () => {
               x={room.x} y={room.y} width={room.width} height={room.height}
               fill={isSelected ? '#eff6ff' : room.fill}
               stroke={isSelected ? '#2563eb' : room.stroke}
-              strokeWidth={isSelected ? 2.5 : 1.5}
-              strokeDasharray="8,4"
+              strokeWidth={isSelected ? 2 : 1}
+              strokeDasharray="4,2"
               className="cursor-move"
               onDoubleClick={() => {
                 setEditingRoomId(room.id);
@@ -466,15 +451,15 @@ const FloorPlanCanvas = () => {
                 </text>
               </>
             )}
-            {/* Dimension lines for selected room */}
-            {isSelected && roomEditMode && showDimensions && (
+            {/* Dimension lines - show when selected */}
+            {isSelected && showDimensions && (
               <>
                 <DimensionLabel x1={room.x} y1={room.y - 10} x2={room.x + room.width} y2={room.y - 10} />
                 <DimensionLabel x1={room.x + room.width + 10} y1={room.y} x2={room.x + room.width + 10} y2={room.y + room.height} />
               </>
             )}
-            {/* Resize handles - show on double click / edit mode */}
-            {isSelected && roomEditMode && !isEditing && (
+            {/* Resize handles - show on single click when selected */}
+            {isSelected && !isEditing && (
               <>
                 {/* Corner handles */}
                 <rect data-id={room.id} data-handle="nw" x={room.x - 5} y={room.y - 5} width={10} height={10}
