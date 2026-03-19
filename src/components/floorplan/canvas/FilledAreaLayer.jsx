@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import ResizeHandles from '../ui/ResizeHandles';
 
 const toMeters = (px) => (px / GRID_SIZE * 0.1);
 
@@ -67,6 +68,13 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
 
         const centroid = getPolygonCentroid(points);
 
+        const box = {
+          x: area.x ?? minX,
+          y: area.y ?? minY,
+          width: area.width ?? (maxX - minX),
+          height: area.height ?? (maxY - minY),
+        };
+
         return (
           <g key={area.id}>
             <polygon
@@ -80,6 +88,9 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
               className="cursor-move"
               onClick={() => onAreaClick?.(area.id)}
             />
+            {isSelected && (
+              <ResizeHandles room={{ id: area.id, ...box, type: 'area' }} />
+            )}
             {(showText || showDimensions) && (
               <g className="pointer-events-none">
                 {showText && (

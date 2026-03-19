@@ -162,10 +162,11 @@ const FloorCanvas = () => {
       const snappedY = snapToGrid(point.y);
       const minSize = GRID_SIZE;
 
-      if (resizingType === 'room' || resizingType === 'land-boundary') {
-        const item = resizingType === 'room' 
-          ? rooms.find((r) => r.id === resizingId)
-          : landBoundary;
+      if (resizingType === 'room' || resizingType === 'land-boundary' || resizingType === 'area') {
+        let item;
+        if (resizingType === 'room') item = rooms.find((r) => r.id === resizingId);
+        else if (resizingType === 'land-boundary') item = landBoundary;
+        else item = filledAreas.find((a) => a.id === resizingId);
         if (!item) return;
 
         let newX = item.x, newY = item.y, newWidth = item.width, newHeight = item.height;
@@ -209,8 +210,11 @@ const FloorCanvas = () => {
 
         if (resizingType === 'room') {
           updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
-        } else {
+        } else if (resizingType === 'land-boundary') {
           updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight });
+        } else {
+          // area
+          useFloorPlanStore.getState().updateFilledArea(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
         }
         setResizeStart({ x: snappedX, y: snappedY });
       }

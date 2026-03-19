@@ -6,6 +6,21 @@ const WALL_THICKNESS = 10;
 const WALL_HEIGHT = 280;
 const MAX_HISTORY = 50;
 
+const getBoundingBox = (points) => {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
 const useFloorPlanStore = create((set, get) => ({
   walls: [],
   rooms: [],
@@ -151,8 +166,10 @@ const useFloorPlanStore = create((set, get) => ({
     }
 
     let filledAreaPoints = null;
+    let areaBounds = null;
     if (isClosedLoop) {
       filledAreaPoints = points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
+      areaBounds = getBoundingBox(filledAreaPoints);
     }
 
     const newAreaId = isClosedLoop ? nanoid() : null;
@@ -161,7 +178,16 @@ const useFloorPlanStore = create((set, get) => ({
       set((state) => ({
         walls: isClosedLoop ? state.walls : [...state.walls, ...newWalls],
         filledAreas: isClosedLoop
-          ? [...state.filledAreas, { id: newAreaId, points: filledAreaPoints, fill: 'rgba(59,130,246,0.12)', stroke: '#2563eb' }]
+          ? [
+              ...state.filledAreas,
+              {
+                id: newAreaId,
+                points: filledAreaPoints,
+                ...areaBounds,
+                fill: 'rgba(59,130,246,0.12)',
+                stroke: '#2563eb',
+              },
+            ]
           : state.filledAreas,
         isDrawingWall: false,
         currentWallPoints: [],
@@ -362,7 +388,32 @@ const useFloorPlanStore = create((set, get) => ({
 
   updateFilledArea: (id, updates) => {
     set((state) => ({
-      filledAreas: state.filledAreas.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+      filledAreas: state.filledAreas.map((a) => {
+        if (a.id !== id) return a;
+        const merged = { ...a, ...updates };
+
+        // If the bounding box changes, regenerate the polygon points as a rectangle.
+        if (
+          'x' in updates ||
+          'y' in updates ||
+          'width' in updates ||
+          'height' in updates
+        ) {
+          const x = merged.x ?? a.x;
+          const y = merged.y ?? a.y;
+          const width = merged.width ?? a.width;
+          const height = merged.height ?? a.height;
+
+          merged.points = [
+            { x, y },
+            { x: x + width, y },
+            { x: x + width, y: y + height },
+            { x, y: y + height },
+          ];
+        }
+
+        return merged;
+      }),
     }));
     get()._pushHistory();
   },
@@ -454,7 +505,11 @@ const useFloorPlanStore = create((set, get) => ({
       const area = state.filledAreas.find((a) => a.id === id);
       if (area) {
         const movedPoints = area.points.map((p) => ({ x: snap(p.x + dx), y: snap(p.y + dy) }));
-        get().updateFilledArea(id, { points: movedPoints });
+        get().updateFilledArea(id, {
+          points: movedPoints,
+          x: snap(area.x + dx),
+          y: snap(area.y + dy),
+        });
       }
     } else if (type === 'land-boundary') {
       const lb = state.landBoundary;

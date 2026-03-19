@@ -40,13 +40,17 @@ const TextInput = ({ value, onChange }) => (
   />
 );
 
+const METERS_PER_GRID = 0.1;
+
 const PropertiesPanel = memo(() => {
   const {
     walls, rooms, doors, windows, openings, outdoorElements, landBoundary,
     selectedId, selectedType,
     updateWall, updateRoom, updateDoor, updateWindow, updateOpening,
-    updateOutdoorElement, updateLandBoundary, deleteItem,
+    updateOutdoorElement, updateLandBoundary, updateFilledArea, deleteItem,
   } = useFloorPlanStore();
+
+  const PX_PER_M = GRID_SIZE / METERS_PER_GRID;
 
   const getItem = () => {
     if (!selectedId) return null;
@@ -56,6 +60,7 @@ const PropertiesPanel = memo(() => {
     if (selectedType === 'window') return windows.find((w) => w.id === selectedId);
     if (selectedType === 'opening') return openings.find((o) => o.id === selectedId);
     if (selectedType === 'outdoor') return outdoorElements.find((e) => e.id === selectedId);
+    if (selectedType === 'area') return filledAreas.find((a) => a.id === selectedId);
     if (selectedType === 'land-boundary') return landBoundary;
     return null;
   };
@@ -95,6 +100,7 @@ const PropertiesPanel = memo(() => {
   const typeLabels = {
     wall: 'Wall',
     room: 'Room',
+    area: 'Area',
     door: 'Door',
     window: 'Window',
     opening: 'Opening',
@@ -102,9 +108,20 @@ const PropertiesPanel = memo(() => {
     'land-boundary': 'Land Boundary',
   };
 
+  const getBoundsFromPoints = (points) => {
+    if (!points || points.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  };
+
   const renderRoomProps = () => {
-    const w = item.width / GRID_SIZE;
-    const h = item.height / GRID_SIZE;
+    const w = item.width / PX_PER_M;
+    const h = item.height / PX_PER_M;
     return (
       <>
         <Section title="Room Info">
@@ -112,10 +129,10 @@ const PropertiesPanel = memo(() => {
         </Section>
         <Section title="Dimensions">
           <Row label="Width">
-            <NumInput value={w.toFixed(2)} onChange={(v) => updateRoom(item.id, { width: v * GRID_SIZE })} unit="m" min={1} max={50} step={0.5} />
+            <NumInput value={w.toFixed(2)} onChange={(v) => updateRoom(item.id, { width: v * PX_PER_M })} unit="m" min={1} max={50} step={0.5} />
           </Row>
           <Row label="Length">
-            <NumInput value={h.toFixed(2)} onChange={(v) => updateRoom(item.id, { height: v * GRID_SIZE })} unit="m" min={1} max={50} step={0.5} />
+            <NumInput value={h.toFixed(2)} onChange={(v) => updateRoom(item.id, { height: v * PX_PER_M })} unit="m" min={1} max={50} step={0.5} />
           </Row>
           <Row label="Area">
             <span className="text-sm font-semibold text-gray-800">{(w * h).toFixed(2)} m²</span>
@@ -125,8 +142,8 @@ const PropertiesPanel = memo(() => {
           </Row>
         </Section>
         <Section title="Position">
-          <Row label="X"><NumInput value={(item.x / GRID_SIZE).toFixed(0)} onChange={(v) => updateRoom(item.id, { x: v * GRID_SIZE })} unit="m" /></Row>
-          <Row label="Y"><NumInput value={(item.y / GRID_SIZE).toFixed(0)} onChange={(v) => updateRoom(item.id, { y: v * GRID_SIZE })} unit="m" /></Row>
+          <Row label="X"><NumInput value={(item.x / PX_PER_M).toFixed(0)} onChange={(v) => updateRoom(item.id, { x: v * PX_PER_M })} unit="m" /></Row>
+          <Row label="Y"><NumInput value={(item.y / PX_PER_M).toFixed(0)} onChange={(v) => updateRoom(item.id, { y: v * PX_PER_M })} unit="m" /></Row>
         </Section>
         <Section title="Style">
           <div className="flex items-center gap-3">
@@ -142,6 +159,76 @@ const PropertiesPanel = memo(() => {
       </>
     );
   };
+
+  const renderAreaProps = () => {
+    const bounds = item.width != null && item.height != null ? item : getBoundsFromPoints(item.points);
+    const w = bounds.width / PX_PER_M;
+    const h = bounds.height / PX_PER_M;
+
+    return (
+      <>
+        <Section title="Area Info">
+          <TextInput
+            value={item.name || 'Ruangan'}
+            onChange={(v) => updateFilledArea(item.id, { name: v })}
+          />
+        </Section>
+        <Section title="Dimensions">
+          <Row label="Width">
+            <NumInput
+              value={w.toFixed(2)}
+              onChange={(v) => updateFilledArea(item.id, { width: v * PX_PER_M })}
+              unit="m"
+              min={1}
+              max={50}
+              step={0.5}
+            />
+          </Row>
+          <Row label="Length">
+            <NumInput
+              value={h.toFixed(2)}
+              onChange={(v) => updateFilledArea(item.id, { height: v * PX_PER_M })}
+              unit="m"
+              min={1}
+              max={50}
+              step={0.5}
+            />
+          </Row>
+          <Row label="Area">
+            <span className="text-sm font-semibold text-gray-800">{(w * h).toFixed(2)} m²</span>
+          </Row>
+        </Section>
+        <Section title="Position">
+          <Row label="X">
+            <NumInput
+              value={(bounds.x / PX_PER_M).toFixed(0)}
+              onChange={(v) => updateFilledArea(item.id, { x: v * PX_PER_M })}
+              unit="m"
+            />
+          </Row>
+          <Row label="Y">
+            <NumInput
+              value={(bounds.y / PX_PER_M).toFixed(0)}
+              onChange={(v) => updateFilledArea(item.id, { y: v * PX_PER_M })}
+              unit="m"
+            />
+          </Row>
+        </Section>
+        <Section title="Style">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">Color</span>
+            <input
+              type="color"
+              value={item.fill || '#f3f4f6'}
+              onChange={(e) => updateFilledArea(item.id, { fill: e.target.value })}
+              className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200"
+            />
+          </div>
+        </Section>
+      </>
+    );
+  };
+
 
   const renderWallProps = () => {
     const length = Math.sqrt((item.x2 - item.x1) ** 2 + (item.y2 - item.y1) ** 2);
@@ -179,9 +266,9 @@ const PropertiesPanel = memo(() => {
 
   const renderLandProps = () => (
     <Section title="Dimensions">
-      <Row label="Width"><NumInput value={(item.width / GRID_SIZE).toFixed(1)} onChange={(v) => updateLandBoundary({ width: v * GRID_SIZE })} unit="m" min={1} max={100} /></Row>
-      <Row label="Length"><NumInput value={(item.height / GRID_SIZE).toFixed(1)} onChange={(v) => updateLandBoundary({ height: v * GRID_SIZE })} unit="m" min={1} max={100} /></Row>
-      <Row label="Area"><span className="text-sm font-semibold text-gray-800">{((item.width / GRID_SIZE) * (item.height / GRID_SIZE)).toFixed(2)} m²</span></Row>
+      <Row label="Width"><NumInput value={(item.width / PX_PER_M).toFixed(1)} onChange={(v) => updateLandBoundary({ width: v * PX_PER_M })} unit="m" min={1} max={100} /></Row>
+      <Row label="Length"><NumInput value={(item.height / PX_PER_M).toFixed(1)} onChange={(v) => updateLandBoundary({ height: v * PX_PER_M })} unit="m" min={1} max={100} /></Row>
+      <Row label="Area"><span className="text-sm font-semibold text-gray-800">{((item.width / PX_PER_M) * (item.height / PX_PER_M)).toFixed(2)} m²</span></Row>
     </Section>
   );
 
@@ -191,8 +278,8 @@ const PropertiesPanel = memo(() => {
         <TextInput value={item.label} onChange={(v) => updateOutdoorElement(item.id, { label: v })} />
       </Section>
       <Section title="Dimensions">
-        <Row label="Width"><NumInput value={(item.width / GRID_SIZE).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { width: v * GRID_SIZE })} unit="m" /></Row>
-        <Row label="Length"><NumInput value={(item.height / GRID_SIZE).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { height: v * GRID_SIZE })} unit="m" /></Row>
+        <Row label="Width"><NumInput value={(item.width / PX_PER_M).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { width: v * PX_PER_M })} unit="m" /></Row>
+        <Row label="Length"><NumInput value={(item.height / PX_PER_M).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { height: v * PX_PER_M })} unit="m" /></Row>
       </Section>
     </>
   );
@@ -221,6 +308,7 @@ const PropertiesPanel = memo(() => {
       </div>
 
       {selectedType === 'room' && renderRoomProps()}
+      {selectedType === 'area' && renderAreaProps()}
       {selectedType === 'wall' && renderWallProps()}
       {selectedType === 'door' && renderDoorWindowProps(updateDoor)}
       {selectedType === 'window' && renderDoorWindowProps(updateWindow)}
