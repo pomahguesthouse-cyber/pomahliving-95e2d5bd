@@ -42,9 +42,9 @@ const WallLayer = memo(({
           x2={wall.x2}
           y2={wall.y2}
           stroke={isSelected ? '#2563eb' : wall.color}
-          strokeWidth={wall.thickness}
+          strokeWidth={2}
           strokeLinecap="butt"
-          strokeDasharray="none"
+          strokeDasharray="4,2"
           className="pointer-events-none"
         />
         {isSelected && (
@@ -108,29 +108,30 @@ const WallLayer = memo(({
           points={pointsStr}
           fill="none"
           stroke="#2563eb"
-          strokeWidth={WALL_THICKNESS}
+          strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.7}
+          strokeDasharray="4,2"
+          opacity={0.8}
         />
         {wallDrawingPoints.map((p, i) => (
           <circle
             key={i}
             cx={p.x}
             cy={p.y}
-            r={4}
-            fill={i === 0 ? '#2563eb' : '#2563eb'}
-            stroke="white"
-            strokeWidth={1}
+            r={3}
+            fill="white"
+            stroke="#2563eb"
+            strokeWidth={1.5}
           />
         ))}
         <circle
           cx={wallPreviewEnd.x}
           cy={wallPreviewEnd.y}
-          r={5}
+          r={4}
           fill="white"
           stroke="#2563eb"
-          strokeWidth={2}
+          strokeWidth={1.5}
         />
       </g>
     );
