@@ -20,6 +20,7 @@ const FloorCanvas = () => {
   const [resizingType, setResizingType] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
+  const [wallPointDragIndex, setWallPointDragIndex] = useState(null);
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const {
@@ -30,7 +31,7 @@ const FloorCanvas = () => {
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
     isDrawingWall, currentWallPoints, previewWallPoints,
-    startWallDrawing, addWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
+    startWallDrawing, addWallPoint, updateWallPoint, insertWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
 
   const snapToGrid = useCallback((value) => Math.round(value / GRID_SIZE) * GRID_SIZE, []);
