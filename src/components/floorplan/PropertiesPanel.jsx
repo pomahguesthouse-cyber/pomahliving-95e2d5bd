@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { MousePointer2, Trash2 } from 'lucide-react';
-import useFloorPlanStore, { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import useFloorPlanStore, { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 
 const Section = ({ title, children }) => (
   <div className="mb-4">
@@ -39,8 +39,6 @@ const TextInput = ({ value, onChange }) => (
     className="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
   />
 );
-
-const METERS_PER_GRID = 0.1;
 
 const PropertiesPanel = memo(() => {
   const {
@@ -235,7 +233,7 @@ const PropertiesPanel = memo(() => {
     return (
       <>
         <Section title="Dimensions">
-          <Row label="Length"><span className="text-sm font-mono font-semibold text-gray-800">{(length / GRID_SIZE).toFixed(2)}m</span></Row>
+          <Row label="Length"><span className="text-sm font-mono font-semibold text-gray-800">{(length / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m</span></Row>
           <Row label="Thickness"><NumInput value={item.thickness} onChange={(v) => updateWall(item.id, { thickness: v })} unit="px" min={4} max={48} /></Row>
         </Section>
         <Section title="Style">

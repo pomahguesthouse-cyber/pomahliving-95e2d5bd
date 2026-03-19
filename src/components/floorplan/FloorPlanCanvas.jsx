@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import useFloorPlanStore, { GRID_SIZE, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
+import useFloorPlanStore, { GRID_SIZE, METERS_PER_GRID, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
 import FloatingActions from './FloatingActions';
 import DimensionLabel from '@/components/floorplan/ui/DimensionLabel';
 
@@ -333,7 +333,7 @@ const FloorPlanCanvas = () => {
                 textAnchor="middle" fontSize={9} fill="#9ca3af" fontFamily="monospace"
                 className="pointer-events-none"
               >
-                {(el.width / GRID_SIZE).toFixed(1)} x {(el.height / GRID_SIZE).toFixed(1)}m
+                {(el.width / GRID_SIZE * METERS_PER_GRID).toFixed(1)} x {(el.height / GRID_SIZE * METERS_PER_GRID).toFixed(1)}m
               </text>
             )}
           </g>
@@ -347,8 +347,8 @@ const FloorPlanCanvas = () => {
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
         const isEditing = editingRoomId === room.id;
-        const w = room.width / GRID_SIZE;
-        const h = room.height / GRID_SIZE;
+        const w = (room.width / GRID_SIZE) * METERS_PER_GRID;
+        const h = (room.height / GRID_SIZE) * METERS_PER_GRID;
         const area = (w * h).toFixed(2);
         return (
           <g key={room.id}>
