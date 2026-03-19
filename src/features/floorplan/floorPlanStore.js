@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 
-const GRID_SIZE = 20;
+const GRID_SIZE = 20; // 20px = 10cm (1m = 200px)
 const WALL_THICKNESS = 10;
 const WALL_HEIGHT = 280;
 const MAX_HISTORY = 50;

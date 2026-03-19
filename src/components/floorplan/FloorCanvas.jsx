@@ -15,7 +15,8 @@ const FloorCanvas = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [editingRoomName, setEditingRoomName] = useState('');
-  const [resizingRoom, setResizingRoom] = useState(null);
+  const [resizingId, setResizingId] = useState(null);
+  const [resizingType, setResizingType] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
 
@@ -24,7 +25,7 @@ const FloorCanvas = () => {
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions,
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
-    addOpening, setLandBoundary, addOutdoorElement,
+    addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
   } = useFloorPlanStore();
 
@@ -75,7 +76,8 @@ const FloorCanvas = () => {
       const handle = target.getAttribute('data-handle');
 
       if (handle && id) {
-        setResizingRoom(id);
+        setResizingId(id);
+        setResizingType(type);
         setResizeHandle(handle);
         setResizeStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
       } else if (id && type) {
@@ -104,56 +106,64 @@ const FloorCanvas = () => {
       return;
     }
 
-    if (resizingRoom && resizeHandle && resizeStart) {
-      const room = rooms.find((r) => r.id === resizingRoom);
-      if (!room) return;
-
+    if (resizingId && resizeHandle && resizeStart) {
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
       const minSize = GRID_SIZE;
 
-      let newX = room.x, newY = room.y, newWidth = room.width, newHeight = room.height;
+      if (resizingType === 'room' || resizingType === 'land-boundary') {
+        const item = resizingType === 'room' 
+          ? rooms.find((r) => r.id === resizingId)
+          : landBoundary;
+        if (!item) return;
 
-      if (resizeHandle === 'nw') {
-        const dx = snappedX - resizeStart.x;
-        const dy = snappedY - resizeStart.y;
-        newWidth = Math.max(minSize, room.width - dx);
-        newHeight = Math.max(minSize, room.height - dy);
-        newX = room.x + room.width - newWidth;
-        newY = room.y + room.height - newHeight;
-      } else if (resizeHandle === 'ne') {
-        const dy = snappedY - resizeStart.y;
-        newWidth = Math.max(minSize, room.width + (snappedX - resizeStart.x));
-        newY = room.y + room.height - Math.max(minSize, room.height - dy);
-        newHeight = Math.max(minSize, room.height - dy);
-      } else if (resizeHandle === 'sw') {
-        const dx = snappedX - resizeStart.x;
-        newWidth = Math.max(minSize, room.width - dx);
-        newX = room.x + room.width - newWidth;
-        newHeight = Math.max(minSize, room.height + (snappedY - resizeStart.y));
-      } else if (resizeHandle === 'se') {
-        newWidth = Math.max(minSize, room.width + (snappedX - resizeStart.x));
-        newHeight = Math.max(minSize, room.height + (snappedY - resizeStart.y));
-      } else if (resizeHandle === 'n') {
-        newY = room.y + (snappedY - resizeStart.y);
-        newHeight = Math.max(minSize, room.height - (snappedY - resizeStart.y));
-      } else if (resizeHandle === 's') {
-        newHeight = Math.max(minSize, room.height + (snappedY - resizeStart.y));
-      } else if (resizeHandle === 'w') {
-        newX = room.x + (snappedX - resizeStart.x);
-        newWidth = Math.max(minSize, room.width - (snappedX - resizeStart.x));
-      } else if (resizeHandle === 'e') {
-        newWidth = Math.max(minSize, room.width + (snappedX - resizeStart.x));
+        let newX = item.x, newY = item.y, newWidth = item.width, newHeight = item.height;
+
+        if (resizeHandle === 'nw') {
+          const dx = snappedX - resizeStart.x;
+          const dy = snappedY - resizeStart.y;
+          newWidth = Math.max(minSize, item.width - dx);
+          newHeight = Math.max(minSize, item.height - dy);
+          newX = item.x + item.width - newWidth;
+          newY = item.y + item.height - newHeight;
+        } else if (resizeHandle === 'ne') {
+          const dy = snappedY - resizeStart.y;
+          newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
+          newY = item.y + item.height - Math.max(minSize, item.height - dy);
+          newHeight = Math.max(minSize, item.height - dy);
+        } else if (resizeHandle === 'sw') {
+          const dx = snappedX - resizeStart.x;
+          newWidth = Math.max(minSize, item.width - dx);
+          newX = item.x + item.width - newWidth;
+          newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
+        } else if (resizeHandle === 'se') {
+          newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
+          newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
+        } else if (resizeHandle === 'n') {
+          newY = item.y + (snappedY - resizeStart.y);
+          newHeight = Math.max(minSize, item.height - (snappedY - resizeStart.y));
+        } else if (resizeHandle === 's') {
+          newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
+        } else if (resizeHandle === 'w') {
+          newX = item.x + (snappedX - resizeStart.x);
+          newWidth = Math.max(minSize, item.width - (snappedX - resizeStart.x));
+        } else if (resizeHandle === 'e') {
+          newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
+        }
+
+        newX = snapToGrid(newX);
+        newY = snapToGrid(newY);
+        newWidth = snapToGrid(newWidth);
+        newHeight = snapToGrid(newHeight);
+
+        if (resizingType === 'room') {
+          updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+        } else {
+          updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight });
+        }
+        setResizeStart({ x: snappedX, y: snappedY });
+        return;
       }
-
-      newX = snapToGrid(newX);
-      newY = snapToGrid(newY);
-      newWidth = snapToGrid(newWidth);
-      newHeight = snapToGrid(newHeight);
-
-      updateRoom(resizingRoom, { x: newX, y: newY, width: newWidth, height: newHeight });
-      setResizeStart({ x: snappedX, y: snappedY });
-      return;
     }
 
     if (dragStart && selectedId) {
@@ -175,9 +185,10 @@ const FloorCanvas = () => {
       return;
     }
 
-    if (resizingRoom) {
+    if (resizingId) {
       useFloorPlanStore.getState()._pushHistory();
-      setResizingRoom(null);
+      setResizingId(null);
+      setResizingType(null);
       setResizeHandle(null);
       setResizeStart(null);
       return;

@@ -7,6 +7,7 @@ const DimensionLabel = memo(({ x1, y1, x2, y2, offset = 10 }) => {
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
   const isHorizontal = Math.abs(y2 - y1) < Math.abs(x2 - x1);
+  const meters = (len / 20 * 0.1).toFixed(2);
 
   return (
     <g className="pointer-events-none">
@@ -35,9 +36,9 @@ const DimensionLabel = memo(({ x1, y1, x2, y2, offset = 10 }) => {
         strokeWidth={0.5}
       />
       <rect
-        x={mx - 14}
+        x={mx - 16}
         y={(isHorizontal ? my - offset : my) - 5}
-        width={28}
+        width={32}
         height={10}
         rx={2}
         fill="white"
@@ -52,7 +53,7 @@ const DimensionLabel = memo(({ x1, y1, x2, y2, offset = 10 }) => {
         fill="#374151"
         fontFamily="monospace"
       >
-        {(len / 20).toFixed(1)}m
+        {meters}m
       </text>
     </g>
   );

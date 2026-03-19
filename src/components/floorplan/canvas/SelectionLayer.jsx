@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import ResizeHandles from '../ui/ResizeHandles';
 
 const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showText, showDimensions }) => {
   const renderLandBoundary = () => {
@@ -8,19 +9,24 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
     const isSelected = selectedId === 'land-boundary';
 
     return (
-      <rect
-        data-id="land-boundary"
-        data-type="land-boundary"
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill="none"
-        stroke={isSelected ? '#2563eb' : '#94a3b8'}
-        strokeWidth={2}
-        strokeDasharray="12,6"
-        className="cursor-move"
-      />
+      <g>
+        <rect
+          data-id="land-boundary"
+          data-type="land-boundary"
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="none"
+          stroke={isSelected ? '#2563eb' : '#94a3b8'}
+          strokeWidth={2}
+          strokeDasharray="12,6"
+          className="cursor-move"
+        />
+        {isSelected && (
+          <ResizeHandles room={{ id: 'land-boundary', x, y, width, height }} />
+        )}
+      </g>
     );
   };
 
@@ -67,7 +73,7 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
                 fontFamily="monospace"
                 className="pointer-events-none"
               >
-                {(el.width / GRID_SIZE).toFixed(1)} x {(el.height / GRID_SIZE).toFixed(1)}m
+                {(el.width / GRID_SIZE * 0.1).toFixed(2)} x {(el.height / GRID_SIZE * 0.1).toFixed(2)}m
               </text>
             )}
           </g>

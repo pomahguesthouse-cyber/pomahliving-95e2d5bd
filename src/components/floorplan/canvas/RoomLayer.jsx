@@ -19,8 +19,8 @@ const RoomLayer = memo(({
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
         const isEditing = editingRoomId === room.id;
-        const w = room.width / GRID_SIZE;
-        const h = room.height / GRID_SIZE;
+        const w = room.width / GRID_SIZE * 0.1;
+        const h = room.height / GRID_SIZE * 0.1;
         const area = (w * h).toFixed(2);
 
         return (
@@ -82,7 +82,7 @@ const RoomLayer = memo(({
                   fontFamily="monospace"
                   className="select-none pointer-events-none"
                 >
-                  {w.toFixed(1)} x {h.toFixed(1)}m
+                  {w.toFixed(2)} x {h.toFixed(2)}m
                 </text>
                 <text
                   x={room.x + room.width / 2}
