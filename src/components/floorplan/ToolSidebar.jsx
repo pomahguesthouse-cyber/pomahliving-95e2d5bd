@@ -1,6 +1,7 @@
 import {
   MousePointer2, Square, Minus, DoorOpen, PanelTop,
-  Grid3X3, Trash2, Upload, X, Fence, Car, TreePine, Route
+  Grid3X3, Trash2, Upload, X, Fence, Car, TreePine, Route,
+  GitBranch
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
@@ -73,6 +74,13 @@ const ToolSidebar = () => {
         label="Dinding"
         active={activeTool === 'wall'}
         onClick={() => setActiveTool('wall')}
+      />
+
+      <ToolButton
+        icon={GitBranch}
+        label="Poly"
+        active={activeTool === 'wall-freehand'}
+        onClick={() => setActiveTool('wall-freehand')}
       />
 
       <Divider />

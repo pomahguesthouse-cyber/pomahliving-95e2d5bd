@@ -19,6 +19,7 @@ const FloorCanvas = () => {
   const [resizingType, setResizingType] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
@@ -26,7 +27,9 @@ const FloorCanvas = () => {
     uploadedImage, showText, showDimensions,
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
-    moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
+    isDrawingWall, wallDrawingPoints, wallPreviewEnd,
+    startWallDrawing, addWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
 
   const snapToGrid = useCallback((value) => Math.round(value / GRID_SIZE) * GRID_SIZE, []);
@@ -53,9 +56,13 @@ const FloorCanvas = () => {
     setResizeHandle(null);
     setResizeStart(null);
     setEditingRoomId(null);
-    setSelected(null, null);
-    setActiveTool('select');
-  }, [setSelected, setActiveTool]);
+    if (isDrawingWall) {
+      cancelWallDrawing();
+    } else {
+      setSelected(null, null);
+      setActiveTool('select');
+    }
+  }, [setSelected, setActiveTool, isDrawingWall, cancelWallDrawing]);
 
   const handleMouseDown = (e) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -65,6 +72,19 @@ const FloorCanvas = () => {
     }
 
     const point = getCanvasPoint(e);
+
+    // Freehand wall drawing
+    if (activeTool === 'wall-freehand') {
+      const snappedX = snapToGrid(point.x);
+      const snappedY = snapToGrid(point.y);
+      
+      if (!isDrawingWall) {
+        startWallDrawing(snappedX, snappedY);
+      } else {
+        addWallPoint(snappedX, snappedY);
+      }
+      return;
+    }
 
     if (['wall', 'land', 'room', 'garden', 'road', 'carport'].includes(activeTool)) {
       setDragStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
@@ -127,6 +147,12 @@ const FloorCanvas = () => {
 
     if (isPanning && panStart) {
       setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
+    }
+
+    // Update wall preview
+    if (activeTool === 'wall-freehand' && isDrawingWall) {
+      updateWallPreview(point.x, point.y);
       return;
     }
 
@@ -278,6 +304,12 @@ const FloorCanvas = () => {
     setDragStart(null);
   };
 
+  const handleDoubleClick = (e) => {
+    if (activeTool === 'wall-freehand' && isDrawingWall) {
+      finishWallDrawing();
+    }
+  };
+
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -301,6 +333,14 @@ const FloorCanvas = () => {
         return;
       }
       
+      if (e.key === 'Enter') {
+        if (isDrawingWall) {
+          e.preventDefault();
+          finishWallDrawing();
+          return;
+        }
+      }
+      
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) deleteItem(selectedId);
         return;
@@ -309,17 +349,19 @@ const FloorCanvas = () => {
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') setActiveTool('room');
       if (e.key === 'w' || e.key === 'W') setActiveTool('wall');
+      if (e.key === 'f' || e.key === 'F') setActiveTool('wall-freehand');
       if (e.key === 'd' || e.key === 'D') setActiveTool('door');
       if (e.key === 'n' || e.key === 'N') setActiveTool('window');
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing]);
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';
     if (activeTool === 'select') return 'default';
+    if (activeTool === 'wall-freehand') return 'crosshair';
     return 'crosshair';
   };
 
@@ -353,7 +395,6 @@ const FloorCanvas = () => {
   };
 
   const floatingPos = getSelectedScreenPos();
-  const selectedRoom = selectedType === 'room' ? rooms.find(r => r.id === selectedId) : null;
 
   const renderDrawingPreview = () => {
     if (!dragStart) return null;
@@ -399,6 +440,7 @@ const FloorCanvas = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
       >
         <GridLayer visible={gridVisible} />
 
@@ -439,6 +481,9 @@ const FloorCanvas = () => {
               setEditingRoomId(id);
               setEditingRoomName(name);
             }}
+            onRoomUpdate={(id, updates) => {
+              updateRoom(id, updates);
+            }}
           />
 
           <WallLayer
@@ -446,6 +491,10 @@ const FloorCanvas = () => {
             selectedId={selectedId}
             showDimensions={showDimensions}
             onWallClick={(id) => setSelected(id, 'wall')}
+            onDimensionEdit={(id, newLength) => updateWallLength(id, newLength)}
+            wallDrawingPoints={wallDrawingPoints}
+            wallPreviewEnd={wallPreviewEnd}
+            isDrawingWall={isDrawingWall}
           />
 
           <OpeningLayer

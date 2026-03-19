@@ -1,7 +1,7 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
-import DimensionLabel from '../ui/DimensionLabel';
+import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 
 const RoomLayer = memo(({
   rooms,
@@ -13,15 +13,79 @@ const RoomLayer = memo(({
   onRoomClick,
   onRoomDoubleClick,
   onNameDoubleClick,
+  onRoomUpdate,
 }) => {
+  const [editingWidth, setEditingWidth] = useState(null);
+  const [editingHeight, setEditingHeight] = useState(null);
+
+  const renderRoomDimension = (room, isHorizontal, position) => {
+    const length = isHorizontal ? room.width : room.height;
+    const lengthMeters = (length / GRID_SIZE * 0.1).toFixed(2);
+    const mx = isHorizontal ? room.x + room.width / 2 : room.x - 10;
+    const my = isHorizontal ? room.y - 10 : room.y + room.height / 2;
+    const isEditing = isHorizontal ? editingWidth === room.id : editingHeight === room.id;
+    const editState = isHorizontal ? editingWidth : editingHeight;
+
+    if (isEditing) {
+      return (
+        <InlineDimensionEditor
+          key={`edit-${position}-${room.id}`}
+          value={lengthMeters}
+          x={mx}
+          y={my}
+          isHorizontal={isHorizontal}
+          onSubmit={(val) => {
+            const updates = isHorizontal 
+              ? { width: val * 20 } 
+              : { height: val * 20 };
+            onRoomUpdate?.(room.id, updates);
+            if (isHorizontal) setEditingWidth(null);
+            else setEditingHeight(null);
+          }}
+          onCancel={() => {
+            if (isHorizontal) setEditingWidth(null);
+            else setEditingHeight(null);
+          }}
+        />
+      );
+    }
+
+    return (
+      <g key={`dim-${position}-${room.id}`} onClick={(e) => { e.stopPropagation(); isHorizontal ? setEditingWidth(room.id) : setEditingHeight(room.id); }}>
+        <rect
+          x={mx - 16}
+          y={my - 5}
+          width={32}
+          height={10}
+          fill="white"
+          stroke="#e5e7eb"
+          strokeWidth={0.5}
+          rx={2}
+          className="cursor-text"
+        />
+        <text
+          x={mx}
+          y={my + 2}
+          textAnchor="middle"
+          fontSize={7}
+          fill="#374151"
+          fontFamily="monospace"
+          className="pointer-events-none"
+        >
+          {lengthMeters}m
+        </text>
+      </g>
+    );
+  };
+
   return (
     <g>
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
         const isEditing = editingRoomId === room.id;
-        const w = room.width / GRID_SIZE * 0.1;
-        const h = room.height / GRID_SIZE * 0.1;
-        const area = (w * h).toFixed(2);
+        const wMeters = (room.width / GRID_SIZE * 0.1).toFixed(2);
+        const hMeters = (room.height / GRID_SIZE * 0.1).toFixed(2);
+        const area = (room.width / GRID_SIZE * 0.1 * (room.height / GRID_SIZE * 0.1)).toFixed(2);
 
         return (
           <g key={room.id}>
@@ -82,7 +146,7 @@ const RoomLayer = memo(({
                   fontFamily="monospace"
                   className="select-none pointer-events-none"
                 >
-                  {w.toFixed(2)} x {h.toFixed(2)}m
+                  {wMeters} x {hMeters}m
                 </text>
                 <text
                   x={room.x + room.width / 2}
@@ -101,8 +165,8 @@ const RoomLayer = memo(({
 
             {showDimensions && isSelected && (
               <>
-                <DimensionLabel x1={room.x} y1={room.y - 10} x2={room.x + room.width} y2={room.y - 10} />
-                <DimensionLabel x1={room.x + room.width + 10} y1={room.y} x2={room.x + room.width + 10} y2={room.y + room.height} />
+                {renderRoomDimension(room, true, 'width')}
+                {renderRoomDimension(room, false, 'height')}
               </>
             )}
 
