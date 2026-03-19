@@ -190,8 +190,9 @@ const useFloorPlanStore = create((set, get) => ({
                   id: newAreaId,
                   points: filledAreaPoints,
                   ...areaBounds,
-                  fill: 'rgba(59,130,246,0.12)',
-                  stroke: '#2563eb',
+                  // Use the same styling as rooms (light gray fill + gray stroke)
+                  fill: '#f3f4f6',
+                  stroke: '#9ca3af',
                 },
               ]
             : state.filledAreas,

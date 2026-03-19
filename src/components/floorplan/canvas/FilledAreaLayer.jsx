@@ -83,7 +83,7 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
               data-id={area.id}
               data-type="area"
               points={pointsStr}
-              fill={isSelected ? '#eff6ff' : area.fill || 'rgba(59,130,246,0.12)'}
+              fill={isSelected ? '#eff6ff' : area.fill || '#f3f4f6'}
               stroke={isSelected ? '#2563eb' : area.stroke || '#9ca3af'}
               strokeWidth={isSelected ? 2 : 1}
               strokeDasharray="4,2"
