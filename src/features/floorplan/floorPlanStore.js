@@ -21,16 +21,17 @@ const useFloorPlanStore = create((set, get) => ({
   snapEnabled: true,
   showText: true,
   showDimensions: true,
+  showLandDimensions: true,
   zoom: 1,
   panOffset: { x: 100, y: 100 },
   uploadedImage: null,
   history: [],
   historyIndex: -1,
   
-  // Polyline wall drawing state
-  wallDrawingPoints: [],
+  // Freehand wall drawing state
   isDrawingWall: false,
-  wallPreviewEnd: null,
+  currentWallPoints: [],
+  previewWallPoints: [],
 
   _pushHistory: () => {
     const state = get();
@@ -64,11 +65,14 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   setActiveTool: (tool) => {
-    if (tool !== 'wall-freehand') {
-      set({ activeTool: tool, selectedId: null, selectedType: null, wallDrawingPoints: [], isDrawingWall: false, wallPreviewEnd: null });
-    } else {
-      set({ activeTool: tool });
-    }
+    set({ 
+      activeTool: tool, 
+      selectedId: null, 
+      selectedType: null,
+      isDrawingWall: false,
+      currentWallPoints: [],
+      previewWallPoints: [],
+    });
   },
   
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
@@ -76,49 +80,51 @@ const useFloorPlanStore = create((set, get) => ({
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
   setShowText: (v) => set({ showText: v }),
   setShowDimensions: (v) => set({ showDimensions: v }),
+  setShowLandDimensions: (v) => set({ showLandDimensions: v }),
 
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setPanOffset: (offset) => set({ panOffset: offset }),
 
-  // Polyline wall drawing
+  // Freehand wall drawing
   startWallDrawing: (x, y) => {
     const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
     const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
     set({
       isDrawingWall: true,
-      wallDrawingPoints: [{ x: snappedX, y: snappedY }],
-      wallPreviewEnd: { x: snappedX, y: snappedY },
+      currentWallPoints: [{ x: snappedX, y: snappedY }],
+      previewWallPoints: [{ x: snappedX, y: snappedY }],
     });
   },
 
   addWallPoint: (x, y) => {
-    const { wallDrawingPoints } = get();
     const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
     const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
-    set({
-      wallDrawingPoints: [...wallDrawingPoints, { x: snappedX, y: snappedY }],
-    });
+    set((state) => ({
+      currentWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
+      previewWallPoints: [...state.previewWallPoints, { x: snappedX, y: snappedY }],
+    }));
   },
 
   updateWallPreview: (x, y) => {
     const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
     const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
-    set({ wallPreviewEnd: { x: snappedX, y: snappedY } });
+    set({ previewWallPoints: [...get().currentWallPoints, { x: snappedX, y: snappedY }] });
   },
 
   finishWallDrawing: () => {
-    const { wallDrawingPoints, walls } = get();
-    if (wallDrawingPoints.length < 2) {
-      set({ isDrawingWall: false, wallDrawingPoints: [], wallPreviewEnd: null });
+    const { currentWallPoints, walls } = get();
+    if (currentWallPoints.length < 2) {
+      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
       return;
     }
     
     const newWalls = [];
-    for (let i = 0; i < wallDrawingPoints.length - 1; i++) {
-      const p1 = wallDrawingPoints[i];
-      const p2 = wallDrawingPoints[i + 1];
-      const length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-      if (length >= GRID_SIZE) {
+    for (let i = 0; i < currentWallPoints.length - 1; i++) {
+      const p1 = currentWallPoints[i];
+      const p2 = currentWallPoints[i + 1];
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      if (Math.abs(dx) >= GRID_SIZE || Math.abs(dy) >= GRID_SIZE) {
         newWalls.push({
           id: nanoid(),
           x1: p1.x,
@@ -136,22 +142,22 @@ const useFloorPlanStore = create((set, get) => ({
       set((state) => ({
         walls: [...state.walls, ...newWalls],
         isDrawingWall: false,
-        wallDrawingPoints: [],
-        wallPreviewEnd: null,
+        currentWallPoints: [],
+        previewWallPoints: [],
         activeTool: 'select',
       }));
       get()._pushHistory();
     } else {
-      set({ isDrawingWall: false, wallDrawingPoints: [], wallPreviewEnd: null });
+      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
     }
   },
 
   cancelWallDrawing: () => {
     set({
       isDrawingWall: false,
-      wallDrawingPoints: [],
-      wallPreviewEnd: null,
-      activeTool: 'select',
+      currentWallPoints: [],
+      previewWallPoints: [],
+      activeTool: 'wall',
     });
   },
 
@@ -177,7 +183,7 @@ const useFloorPlanStore = create((set, get) => ({
     const wall = walls.find((w) => w.id === id);
     if (!wall) return;
     
-    const lengthPx = newLengthMeters * 20; // 20px = 0.1m, so 1m = 200px
+    const lengthPx = newLengthMeters * 20;
     const dx = wall.x2 - wall.x1;
     const dy = wall.y2 - wall.y1;
     const currentLength = Math.sqrt(dx * dx + dy * dy);
@@ -421,9 +427,9 @@ const useFloorPlanStore = create((set, get) => ({
       outdoorElements: [],
       selectedId: null,
       selectedType: null,
-      wallDrawingPoints: [],
       isDrawingWall: false,
-      wallPreviewEnd: null,
+      currentWallPoints: [],
+      previewWallPoints: [],
     });
     get()._pushHistory();
   },
