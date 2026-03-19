@@ -113,61 +113,61 @@ const useFloorPlanStore = create((set, get) => ({
   setPanOffset: (offset) => set({ panOffset: offset }),
 
   // Freehand wall drawing
-  startWallDrawing: (x, y) => {
+  startBoundaryDrawing: (x, y) => {
     const snap = get().snap;
     const snappedX = snap(x);
     const snappedY = snap(y);
     set({
-      isDrawingWall: true,
-      currentWallPoints: [{ x: snappedX, y: snappedY }],
-      previewWallPoints: [{ x: snappedX, y: snappedY }],
+      isDrawingBoundary: true,
+      currentBoundaryPoints: [{ x: snappedX, y: snappedY }],
+      previewBoundaryPoints: [{ x: snappedX, y: snappedY }],
     });
   },
 
-  addWallPoint: (x, y) => {
+  addBoundaryPoint: (x, y) => {
     const snap = get().snap;
     const snappedX = snap(x);
     const snappedY = snap(y);
     set((state) => ({
-      currentWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
-      previewWallPoints: [...state.previewWallPoints, { x: snappedX, y: snappedY }],
+      currentBoundaryPoints: [...state.currentBoundaryPoints, { x: snappedX, y: snappedY }],
+      previewBoundaryPoints: [...state.previewBoundaryPoints, { x: snappedX, y: snappedY }],
     }));
   },
 
-  updateWallPreview: (x, y) => {
+  updateBoundaryPreview: (x, y) => {
     const snap = get().snap;
     const snappedX = snap(x);
     const snappedY = snap(y);
-    set({ previewWallPoints: [...get().currentWallPoints, { x: snappedX, y: snappedY }] });
+    set({ previewBoundaryPoints: [...get().currentBoundaryPoints, { x: snappedX, y: snappedY }] });
   },
 
-  finishWallDrawing: () => {
+  finishBoundaryDrawing: () => {
     try {
-      const { currentWallPoints } = get();
-      if (currentWallPoints.length < 2) {
-        set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
+      const { currentBoundaryPoints } = get();
+      if (currentBoundaryPoints.length < 2) {
+        set({ isDrawingBoundary: false, currentBoundaryPoints: [], previewBoundaryPoints: [] });
         return null;
       }
 
-      const firstPoint = currentWallPoints[0];
-      const lastPoint = currentWallPoints[currentWallPoints.length - 1];
+      const firstPoint = currentBoundaryPoints[0];
+      const lastPoint = currentBoundaryPoints[currentBoundaryPoints.length - 1];
       const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
       const { gridSize } = get();
-      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= gridSize;
+      const isClosedLoop = currentBoundaryPoints.length >= 3 && distToFirst <= gridSize;
 
       // If the curve closes, snap the last point to the first to ensure a perfect loop.
       const points = isClosedLoop
-        ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
-        : currentWallPoints;
+        ? [...currentBoundaryPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
+        : currentBoundaryPoints;
 
-      const newWalls = [];
+      const newBoundaries = [];
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
         const p2 = points[i + 1];
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         if (Math.abs(dx) >= gridSize || Math.abs(dy) >= gridSize) {
-          newWalls.push({
+          newBoundaries.push({
             id: nanoid(),
             x1: p1.x,
             y1: p1.y,
@@ -191,9 +191,9 @@ const useFloorPlanStore = create((set, get) => ({
 
       const newAreaId = isClosedLoop ? nanoid() : null;
 
-      if (newWalls.length > 0 || (isClosedLoop && areaBounds)) {
+      if (newBoundaries.length > 0 || (isClosedLoop && areaBounds)) {
         set((state) => ({
-          walls: isClosedLoop ? state.walls : [...state.walls, ...newWalls],
+          walls: isClosedLoop ? state.walls : [...state.walls, ...newBoundaries],
           filledAreas: isClosedLoop && areaBounds
             ? [
                 ...state.filledAreas,
@@ -207,50 +207,50 @@ const useFloorPlanStore = create((set, get) => ({
                 },
               ]
             : state.filledAreas,
-          isDrawingWall: false,
-          currentWallPoints: [],
-          previewWallPoints: [],
+          isDrawingBoundary: false,
+          currentBoundaryPoints: [],
+          previewBoundaryPoints: [],
           activeTool: 'select',
         }));
         get()._pushHistory();
         return newAreaId;
       }
 
-      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
+      set({ isDrawingBoundary: false, currentBoundaryPoints: [], previewBoundaryPoints: [] });
       return null;
     } catch (error) {
-      console.error('Error finishing wall drawing:', error);
-      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+      console.error('Error finishing boundary drawing:', error);
+      set({ isDrawingBoundary: false, currentBoundaryPoints: [], previewBoundaryPoints: [], activeTool: 'select' });
       return null;
     }
   },
 
-  cancelWallDrawing: () => {
+  cancelBoundaryDrawing: () => {
     set({
-      isDrawingWall: false,
-      currentWallPoints: [],
-      previewWallPoints: [],
+      isDrawingBoundary: false,
+      currentBoundaryPoints: [],
+      previewBoundaryPoints: [],
       activeTool: 'wall',
     });
   },
 
-  updateWallPoint: (index, x, y) => {
+  updateBoundaryPoint: (index, x, y) => {
     set((state) => {
-      if (!state.isDrawingWall) return {};
-      const points = [...state.currentWallPoints];
+      if (!state.isDrawingBoundary) return {};
+      const points = [...state.currentBoundaryPoints];
       if (index < 0 || index >= points.length) return {};
       points[index] = { x, y };
-      return { currentWallPoints: points, previewWallPoints: [...points] };
+      return { currentBoundaryPoints: points, previewBoundaryPoints: [...points] };
     });
   },
 
-  insertWallPoint: (index, x, y) => {
+  insertBoundaryPoint: (index, x, y) => {
     set((state) => {
-      if (!state.isDrawingWall) return {};
-      const points = [...state.currentWallPoints];
+      if (!state.isDrawingBoundary) return {};
+      const points = [...state.currentBoundaryPoints];
       const insertIndex = Math.max(0, Math.min(points.length, index));
       points.splice(insertIndex, 0, { x, y });
-      return { currentWallPoints: points, previewWallPoints: [...points] };
+      return { currentBoundaryPoints: points, previewBoundaryPoints: [...points] };
     });
   },
 
@@ -585,9 +585,9 @@ const useFloorPlanStore = create((set, get) => ({
       outdoorElements: [],
       selectedId: null,
       selectedType: null,
-      isDrawingWall: false,
-      currentWallPoints: [],
-      previewWallPoints: [],
+      isDrawingBoundary: false,
+      currentBoundaryPoints: [],
+      previewBoundaryPoints: [],
     });
     get()._pushHistory();
   },
