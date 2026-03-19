@@ -15,6 +15,7 @@ const FloorPlanCanvas = () => {
   const [resizingRoom, setResizingRoom] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
+  const [wallPointIndex, setWallPointIndex] = useState(null);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
