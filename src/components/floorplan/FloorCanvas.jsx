@@ -57,6 +57,7 @@ const FloorCanvas = () => {
     setResizingType(null);
     setResizeHandle(null);
     setResizeStart(null);
+    setWallPointDragIndex(null);
     setEditingRoomId(null);
     if (isDrawingWall) {
       cancelWallDrawing();
@@ -79,12 +80,19 @@ const FloorCanvas = () => {
     if (activeTool === 'wall') {
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
-      
-      if (!isDrawingWall) {
-        startWallDrawing(snappedX, snappedY);
-      } else {
+
+      if (isDrawingWall) {
+        const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
+        if (pointIndexAttr != null) {
+          setWallPointDragIndex(Number(pointIndexAttr));
+          return;
+        }
+
         addWallPoint(snappedX, snappedY);
+        return;
       }
+
+      startWallDrawing(snappedX, snappedY);
       return;
     }
 
@@ -149,6 +157,13 @@ const FloorCanvas = () => {
 
     if (isPanning && panStart) {
       setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
+    }
+
+    if (wallPointDragIndex !== null) {
+      const snappedX = snapToGrid(point.x);
+      const snappedY = snapToGrid(point.y);
+      updateWallPoint(wallPointDragIndex, snappedX, snappedY);
       return;
     }
 
@@ -241,6 +256,11 @@ const FloorCanvas = () => {
       return;
     }
 
+    if (wallPointDragIndex !== null) {
+      setWallPointDragIndex(null);
+      return;
+    }
+
     if (resizingId) {
       useFloorPlanStore.getState()._pushHistory();
       setResizingId(null);
@@ -300,6 +320,49 @@ const FloorCanvas = () => {
 
   const handleDoubleClick = (e) => {
     if (activeTool === 'wall' && isDrawingWall) {
+      const clickPoint = getCanvasPoint(e);
+
+      const pointRadius = 8;
+      const closestPointIndex = currentWallPoints.findIndex((p) => {
+        return Math.hypot(p.x - clickPoint.x, p.y - clickPoint.y) <= pointRadius;
+      });
+
+      if (closestPointIndex !== -1) {
+        // Start dragging an existing point
+        setWallPointDragIndex(closestPointIndex);
+        return;
+      }
+
+      const findClosestSegment = (points, x, y) => {
+        let best = { index: -1, dist: Infinity, proj: { x, y } };
+        for (let i = 0; i < points.length - 1; i += 1) {
+          const a = points[i];
+          const b = points[i + 1];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const len2 = dx * dx + dy * dy;
+          if (len2 === 0) continue;
+          const t = ((x - a.x) * dx + (y - a.y) * dy) / len2;
+          const tClamped = Math.max(0, Math.min(1, t));
+          const projX = a.x + tClamped * dx;
+          const projY = a.y + tClamped * dy;
+          const dist = Math.hypot(projX - x, projY - y);
+          if (dist < best.dist) {
+            best = { index: i, dist, proj: { x: projX, y: projY } };
+          }
+        }
+        return best;
+      };
+
+      const { index, dist, proj } = findClosestSegment(currentWallPoints, clickPoint.x, clickPoint.y);
+      const insertThreshold = Math.min(GRID_SIZE, 12);
+      if (index !== -1 && dist <= insertThreshold) {
+        const snapX = snapToGrid(proj.x);
+        const snapY = snapToGrid(proj.y);
+        insertWallPoint(index + 1, snapX, snapY);
+        return;
+      }
+
       try {
         const newAreaId = finishWallDrawing();
         if (newAreaId) setSelected(newAreaId, 'area');
