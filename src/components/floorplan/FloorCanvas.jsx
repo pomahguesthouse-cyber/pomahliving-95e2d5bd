@@ -46,6 +46,17 @@ const FloorCanvas = () => {
     y: canvasY * zoom + panOffset.y,
   }), [zoom, panOffset]);
 
+  const cancelCurrentAction = useCallback(() => {
+    setDragStart(null);
+    setResizingId(null);
+    setResizingType(null);
+    setResizeHandle(null);
+    setResizeStart(null);
+    setEditingRoomId(null);
+    setSelected(null, null);
+    setActiveTool('select');
+  }, [setSelected, setActiveTool]);
+
   const handleMouseDown = (e) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
@@ -57,25 +68,38 @@ const FloorCanvas = () => {
 
     if (['wall', 'land', 'room', 'garden', 'road', 'carport'].includes(activeTool)) {
       setDragStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
-    } else if (activeTool === 'door') {
+      return;
+    }
+    
+    if (activeTool === 'door') {
       const id = addDoor(point.x, point.y);
       setSelected(id, 'door');
       setActiveTool('select');
-    } else if (activeTool === 'window') {
+      return;
+    }
+    
+    if (activeTool === 'window') {
       const id = addWindow(point.x, point.y);
       setSelected(id, 'window');
       setActiveTool('select');
-    } else if (activeTool === 'opening') {
+      return;
+    }
+    
+    if (activeTool === 'opening') {
       const id = addOpening(point.x, point.y);
       setSelected(id, 'opening');
       setActiveTool('select');
-    } else if (activeTool === 'select') {
+      return;
+    }
+    
+    if (activeTool === 'select') {
       const target = e.target;
       const id = target.getAttribute('data-id');
       const type = target.getAttribute('data-type');
       const handle = target.getAttribute('data-handle');
 
       if (handle && id) {
+        e.stopPropagation();
         setResizingId(id);
         setResizingType(type);
         setResizeHandle(handle);
@@ -162,8 +186,8 @@ const FloorCanvas = () => {
           updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight });
         }
         setResizeStart({ x: snappedX, y: snappedY });
-        return;
       }
+      return;
     }
 
     if (dragStart && selectedId) {
@@ -201,8 +225,12 @@ const FloorCanvas = () => {
         const id = addWall(dragStart.x, dragStart.y, endX, endY);
         setSelected(id, 'wall');
       }
+      setActiveTool('select');
       setDragStart(null);
-    } else if (activeTool === 'room' && dragStart) {
+      return;
+    }
+    
+    if (activeTool === 'room' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
       if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
@@ -211,18 +239,25 @@ const FloorCanvas = () => {
         const id = addRoom(x, y, Math.abs(width), Math.abs(height));
         setSelected(id, 'room');
       }
+      setActiveTool('select');
       setDragStart(null);
-    } else if (activeTool === 'land' && dragStart) {
+      return;
+    }
+    
+    if (activeTool === 'land' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
       if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         setLandBoundary(x, y, Math.abs(width), Math.abs(height));
-        setActiveTool('select');
       }
+      setActiveTool('select');
       setDragStart(null);
-    } else if (['garden', 'road', 'carport'].includes(activeTool) && dragStart) {
+      return;
+    }
+    
+    if (['garden', 'road', 'carport'].includes(activeTool) && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
       if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
@@ -232,7 +267,9 @@ const FloorCanvas = () => {
         const id = addOutdoorElement(typeMap[activeTool], x, y, Math.abs(width), Math.abs(height));
         setSelected(id, 'outdoor');
       }
+      setActiveTool('select');
       setDragStart(null);
+      return;
     }
 
     if (dragStart && selectedId) {
@@ -250,27 +287,35 @@ const FloorCanvas = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) useFloorPlanStore.getState().redo();
         else useFloorPlanStore.getState().undo();
+        return;
       }
+      
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelCurrentAction();
+        return;
+      }
+      
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) deleteItem(selectedId);
+        return;
       }
-      if (e.key === 'Escape') {
-        setSelected(null, null);
-        setEditingRoomId(null);
-      }
+      
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') setActiveTool('room');
       if (e.key === 'w' || e.key === 'W') setActiveTool('wall');
       if (e.key === 'd' || e.key === 'D') setActiveTool('door');
       if (e.key === 'n' || e.key === 'N') setActiveTool('window');
     };
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction]);
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';

@@ -21,6 +21,7 @@ const ResizeHandles = memo(({ room }) => {
         <rect
           key={position}
           data-id={room.id}
+          data-type={room.type || 'room'}
           data-handle={position}
           x={x}
           y={y}
@@ -30,7 +31,8 @@ const ResizeHandles = memo(({ room }) => {
           stroke="#2563eb"
           strokeWidth={0.75}
           rx={1}
-          className={`cursor-${cursor}`}
+          className="cursor-nw-resize"
+          style={{ cursor }}
         />
       ))}
     </>

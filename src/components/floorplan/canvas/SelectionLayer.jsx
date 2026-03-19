@@ -24,7 +24,7 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
           className="cursor-move"
         />
         {isSelected && (
-          <ResizeHandles room={{ id: 'land-boundary', x, y, width, height }} />
+          <ResizeHandles room={{ id: 'land-boundary', x, y, width, height, type: 'land-boundary' }} />
         )}
       </g>
     );
