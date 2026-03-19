@@ -44,7 +44,7 @@ const METERS_PER_GRID = 0.1;
 
 const PropertiesPanel = memo(() => {
   const {
-    walls, rooms, doors, windows, openings, outdoorElements, landBoundary,
+    walls, rooms, doors, windows, openings, outdoorElements, landBoundary, filledAreas,
     selectedId, selectedType,
     updateWall, updateRoom, updateDoor, updateWindow, updateOpening,
     updateOutdoorElement, updateLandBoundary, updateFilledArea, deleteItem,
