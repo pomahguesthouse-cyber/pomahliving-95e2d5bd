@@ -9,6 +9,8 @@ const FloorPlanCanvas = () => {
   const [dragStart, setDragStart] = useState(null);
   const [panStart, setPanStart] = useState(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState(null);
+  const [editingRoomName, setEditingRoomName] = useState('');
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
@@ -16,7 +18,7 @@ const FloorPlanCanvas = () => {
     uploadedImage, showText, showDimensions,
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement,
-    moveItem, deleteItem, setZoom, setPanOffset,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
   } = useFloorPlanStore();
 
   const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -276,6 +278,7 @@ const FloorPlanCanvas = () => {
     <g>
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
+        const isEditing = editingRoomId === room.id;
         const w = room.width / GRID_SIZE;
         const h = room.height / GRID_SIZE;
         const area = (w * h).toFixed(2);
@@ -290,18 +293,56 @@ const FloorPlanCanvas = () => {
               strokeWidth={isSelected ? 2.5 : 1.5}
               strokeDasharray="8,4"
               className="cursor-move"
+              onDoubleClick={() => {
+                setEditingRoomId(room.id);
+                setEditingRoomName(room.name);
+              }}
             />
             {/* Room labels */}
             {showText && (
               <>
-                <text
-                  x={room.x + room.width / 2} y={room.y + room.height / 2 - 14}
-                  textAnchor="middle" dominantBaseline="middle"
-                  fontSize={13} fontWeight="600" fill="#1f2937"
-                  className="select-none pointer-events-none"
-                >
-                  {room.name}
-                </text>
+                {isEditing ? (
+                  <foreignObject
+                    x={room.x + room.width / 2 - 60}
+                    y={room.y + room.height / 2 - 24}
+                    width={120}
+                    height={32}
+                  >
+                    <input
+                      type="text"
+                      value={editingRoomName}
+                      onChange={(e) => setEditingRoomName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateRoom(room.id, { name: editingRoomName });
+                          setEditingRoomId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingRoomId(null);
+                        }
+                      }}
+                      onBlur={() => {
+                        updateRoom(room.id, { name: editingRoomName });
+                        setEditingRoomId(null);
+                      }}
+                      autoFocus
+                      className="w-full px-2 py-1 text-sm text-center bg-white border-2 border-blue-500 rounded-lg outline-none shadow-md"
+                      style={{ fontSize: '13px', fontWeight: 600 }}
+                    />
+                  </foreignObject>
+                ) : (
+                  <text
+                    x={room.x + room.width / 2} y={room.y + room.height / 2 - 14}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fontSize={13} fontWeight="600" fill="#1f2937"
+                    className="select-none pointer-events-none cursor-text"
+                    onDoubleClick={() => {
+                      setEditingRoomId(room.id);
+                      setEditingRoomName(room.name);
+                    }}
+                  >
+                    {room.name}
+                  </text>
+                )}
                 <text
                   x={room.x + room.width / 2} y={room.y + room.height / 2 + 2}
                   textAnchor="middle" dominantBaseline="middle"
