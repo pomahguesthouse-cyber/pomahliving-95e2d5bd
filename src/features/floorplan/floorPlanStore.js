@@ -59,6 +59,11 @@ const useFloorPlanStore = create((set, get) => ({
   currentBoundaryPoints: [],
   previewBoundaryPoints: [],
 
+  // Freehand wall drawing state
+  isDrawingWall: false,
+  currentWallPoints: [],
+  previewWallPoints: [],
+
   _pushHistory: () => {
     const state = get();
     const snapshot = {
@@ -231,6 +236,128 @@ const useFloorPlanStore = create((set, get) => ({
       currentBoundaryPoints: [],
       previewBoundaryPoints: [],
       activeTool: 'wall',
+    });
+  },
+
+  // Freehand wall drawing
+  startWallDrawing: (x, y) => {
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
+    set({
+      isDrawingWall: true,
+      currentWallPoints: [{ x: snappedX, y: snappedY }],
+      previewWallPoints: [{ x: snappedX, y: snappedY }],
+      selectedId: null,
+      selectedType: null,
+    });
+  },
+
+  addWallPoint: (x, y) => {
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
+    set((state) => ({
+      currentWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
+      previewWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
+    }));
+  },
+
+  updateWallPoint: (index, x, y) => {
+    set((state) => {
+      if (!state.isDrawingWall) return {};
+      const points = [...state.currentWallPoints];
+      if (index < 0 || index >= points.length) return {};
+      points[index] = { x, y };
+      return { currentWallPoints: points, previewWallPoints: [...points] };
+    });
+  },
+
+  insertWallPoint: (index, x, y) => {
+    set((state) => {
+      if (!state.isDrawingWall) return {};
+      const points = [...state.currentWallPoints];
+      const insertIndex = Math.max(0, Math.min(points.length, index));
+      points.splice(insertIndex, 0, { x, y });
+      return { currentWallPoints: points, previewWallPoints: [...points] };
+    });
+  },
+
+  updateWallPreview: (x, y) => {
+    const snap = get().snap;
+    const snappedX = snap(x);
+    const snappedY = snap(y);
+    set((state) => ({ previewWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }] }));
+  },
+
+  finishWallDrawing: () => {
+    const { currentWallPoints, previewWallPoints, gridSize } = get();
+    try {
+      if (!currentWallPoints || currentWallPoints.length < 2) {
+        set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+        return null;
+      }
+
+      const firstPoint = currentWallPoints[0];
+      const lastPoint = currentWallPoints[currentWallPoints.length - 1];
+      const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
+      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= gridSize;
+
+      const points = isClosedLoop
+        ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
+        : currentWallPoints;
+
+      const newWalls = [];
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        newWalls.push({
+          id: nanoid(),
+          x1: p1.x,
+          y1: p1.y,
+          x2: p2.x,
+          y2: p2.y,
+          thickness: WALL_THICKNESS,
+          height: WALL_HEIGHT,
+          color: '#374151',
+        });
+      }
+
+      const newAreaId = isClosedLoop ? nanoid() : null;
+      const area = isClosedLoop
+        ? {
+            id: newAreaId,
+            points: points.slice(0, -1),
+            ...getBoundingBox(points.slice(0, -1)),
+            fill: '#f3f4f6',
+            stroke: '#9ca3af',
+          }
+        : null;
+
+      set((state) => ({
+        walls: [...state.walls, ...newWalls],
+        filledAreas: area ? [...state.filledAreas, area] : state.filledAreas,
+        isDrawingWall: false,
+        currentWallPoints: [],
+        previewWallPoints: [],
+        activeTool: 'select',
+      }));
+
+      get()._pushHistory();
+      return newAreaId;
+    } catch (error) {
+      console.error('Error finishing wall drawing:', error);
+      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+      return null;
+    }
+  },
+
+  cancelWallDrawing: () => {
+    set({
+      isDrawingWall: false,
+      currentWallPoints: [],
+      previewWallPoints: [],
+      activeTool: 'select',
     });
   },
 

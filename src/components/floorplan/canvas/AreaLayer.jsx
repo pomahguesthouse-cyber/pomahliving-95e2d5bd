@@ -97,10 +97,11 @@ const AreaLayer = memo(({
   };
 
   const renderWallPreview = () => {
-    if (!isDrawingWall || wallDrawingPoints.length === 0 || !wallPreviewEnd) return null;
+    const points = wallDrawingPoints ?? [];
+    if (!isDrawingWall || points.length === 0 || !wallPreviewEnd) return null;
 
-    const points = [...wallDrawingPoints, wallPreviewEnd];
-    const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
+    const allPoints = [...points, wallPreviewEnd];
+    const pointsStr = allPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
     return (
       <g>
@@ -114,7 +115,7 @@ const AreaLayer = memo(({
           strokeDasharray="4,2"
           opacity={0.8}
         />
-        {wallDrawingPoints.map((p, i) => (
+        {points.map((p, i) => (
           <circle
             key={i}
             data-wall-point-index={i}
@@ -129,7 +130,7 @@ const AreaLayer = memo(({
         ))}
         {wallPreviewEnd && (
           <circle
-            data-wall-point-index={wallDrawingPoints.length}
+            data-wall-point-index={points.length}
             cx={wallPreviewEnd.x}
             cy={wallPreviewEnd.y}
             r={4}
