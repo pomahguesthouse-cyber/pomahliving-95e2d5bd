@@ -117,22 +117,28 @@ const AreaLayer = memo(({
         {wallDrawingPoints.map((p, i) => (
           <circle
             key={i}
+            data-wall-point-index={i}
             cx={p.x}
             cy={p.y}
-            r={3}
+            r={4}
             fill="white"
             stroke="#2563eb"
             strokeWidth={1.5}
+            className="cursor-move"
           />
         ))}
-        <circle
-          cx={wallPreviewEnd.x}
-          cy={wallPreviewEnd.y}
-          r={4}
-          fill="white"
-          stroke="#2563eb"
-          strokeWidth={1.5}
-        />
+        {wallPreviewEnd && (
+          <circle
+            data-wall-point-index={wallDrawingPoints.length}
+            cx={wallPreviewEnd.x}
+            cy={wallPreviewEnd.y}
+            r={4}
+            fill="white"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            className="cursor-move"
+          />
+        )}
       </g>
     );
   };

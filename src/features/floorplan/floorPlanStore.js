@@ -223,6 +223,26 @@ const useFloorPlanStore = create((set, get) => ({
     });
   },
 
+  updateWallPoint: (index, x, y) => {
+    set((state) => {
+      if (!state.isDrawingWall) return {};
+      const points = [...state.currentWallPoints];
+      if (index < 0 || index >= points.length) return {};
+      points[index] = { x, y };
+      return { currentWallPoints: points, previewWallPoints: [...points] };
+    });
+  },
+
+  insertWallPoint: (index, x, y) => {
+    set((state) => {
+      if (!state.isDrawingWall) return {};
+      const points = [...state.currentWallPoints];
+      const insertIndex = Math.max(0, Math.min(points.length, index));
+      points.splice(insertIndex, 0, { x, y });
+      return { currentWallPoints: points, previewWallPoints: [...points] };
+    });
+  },
+
   addWall: (x1, y1, x2, y2) => {
     const id = nanoid();
     const wall = {
