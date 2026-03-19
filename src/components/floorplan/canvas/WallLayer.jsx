@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import { GRID_SIZE, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
 import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 
 const WallLayer = memo(({ 

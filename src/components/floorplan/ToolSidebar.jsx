@@ -70,7 +70,7 @@ const ToolSidebar = () => {
 
       <ToolButton
         icon={Minus}
-        label="Dinding"
+        label="Garis"
         active={activeTool === 'wall'}
         onClick={() => setActiveTool('wall')}
       />
