@@ -11,6 +11,9 @@ const FloorPlanCanvas = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [editingRoomName, setEditingRoomName] = useState('');
+  const [resizingRoom, setResizingRoom] = useState(null);
+  const [resizeHandle, setResizeHandle] = useState(null);
+  const [resizeStart, setResizeStart] = useState(null);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
@@ -68,11 +71,25 @@ const FloorPlanCanvas = () => {
       const target = e.target;
       const id = target.getAttribute('data-id');
       const type = target.getAttribute('data-type');
-      if (id && type) {
+      const handle = target.getAttribute('data-handle');
+      
+      if (handle && id) {
+        setResizingRoom(id);
+        setResizeHandle(handle);
+        setResizeStart({ x: point.x, y: point.y });
+      } else if (id && type) {
+        if (editingRoomId) {
+          updateRoom(editingRoomId, { name: editingRoomName });
+          setEditingRoomId(null);
+        }
         setSelected(id, type);
         setIsDragging(true);
         setDragStart({ x: point.x, y: point.y });
       } else {
+        if (editingRoomId) {
+          updateRoom(editingRoomId, { name: editingRoomName });
+          setEditingRoomId(null);
+        }
         setSelected(null, null);
       }
     }
@@ -84,6 +101,72 @@ const FloorPlanCanvas = () => {
 
     if (isPanning && panStart) {
       setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
+    }
+
+    if (resizingRoom && resizeHandle && resizeStart) {
+      const room = rooms.find((r) => r.id === resizingRoom);
+      if (!room) return;
+      
+      const snappedX = snapToGrid(point.x);
+      const snappedY = snapToGrid(point.y);
+      const minSize = GRID_SIZE;
+      
+      let newX = room.x;
+      let newY = room.y;
+      let newWidth = room.width;
+      let newHeight = room.height;
+
+      if (resizeHandle === 'nw') {
+        const dx = snappedX - resizeStart.x;
+        const dy = snappedY - resizeStart.y;
+        const newW = Math.max(minSize, room.width - dx);
+        const newH = Math.max(minSize, room.height - dy);
+        newX = room.x + room.width - newW;
+        newY = room.y + room.height - newH;
+        newWidth = newW;
+        newHeight = newH;
+      } else if (resizeHandle === 'ne') {
+        const dx = snappedX - resizeStart.x;
+        const dy = snappedY - resizeStart.y;
+        newWidth = Math.max(minSize, room.width + dx);
+        newY = room.y + room.height - Math.max(minSize, room.height - dy);
+        newHeight = Math.max(minSize, room.height - dy);
+      } else if (resizeHandle === 'sw') {
+        const dx = snappedX - resizeStart.x;
+        const dy = snappedY - resizeStart.y;
+        const newW = Math.max(minSize, room.width - dx);
+        newX = room.x + room.width - newW;
+        newWidth = newW;
+        newHeight = Math.max(minSize, room.height + dy);
+      } else if (resizeHandle === 'se') {
+        const dx = snappedX - resizeStart.x;
+        const dy = snappedY - resizeStart.y;
+        newWidth = Math.max(minSize, room.width + dx);
+        newHeight = Math.max(minSize, room.height + dy);
+      } else if (resizeHandle === 'n') {
+        const dy = snappedY - resizeStart.y;
+        newY = room.y + dy;
+        newHeight = Math.max(minSize, room.height - dy);
+      } else if (resizeHandle === 's') {
+        const dy = snappedY - resizeStart.y;
+        newHeight = Math.max(minSize, room.height + dy);
+      } else if (resizeHandle === 'w') {
+        const dx = snappedX - resizeStart.x;
+        newX = room.x + dx;
+        newWidth = Math.max(minSize, room.width - dx);
+      } else if (resizeHandle === 'e') {
+        const dx = snappedX - resizeStart.x;
+        newWidth = Math.max(minSize, room.width + dx);
+      }
+
+      newX = snapToGrid(newX);
+      newY = snapToGrid(newY);
+      newWidth = snapToGrid(newWidth);
+      newHeight = snapToGrid(newHeight);
+
+      updateRoom(resizingRoom, { x: newX, y: newY, width: newWidth, height: newHeight });
+      setResizeStart({ x: snappedX, y: snappedY });
       return;
     }
 
@@ -103,6 +186,14 @@ const FloorPlanCanvas = () => {
     if (isPanning) {
       setPanStart(null);
       setIsPanning(false);
+      return;
+    }
+
+    if (resizingRoom) {
+      useFloorPlanStore.getState()._pushHistory();
+      setResizingRoom(null);
+      setResizeHandle(null);
+      setResizeStart(null);
       return;
     }
 
@@ -366,6 +457,29 @@ const FloorPlanCanvas = () => {
               <>
                 <DimensionLabel x1={room.x} y1={room.y - 14} x2={room.x + room.width} y2={room.y - 14} />
                 <DimensionLabel x1={room.x + room.width + 14} y1={room.y} x2={room.x + room.width + 14} y2={room.y + room.height} />
+              </>
+            )}
+            {/* Resize handles for selected room */}
+            {isSelected && !isEditing && (
+              <>
+                {/* Corner handles */}
+                <rect data-id={room.id} data-handle="nw" x={room.x - 6} y={room.y - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-nw-resize" />
+                <rect data-id={room.id} data-handle="ne" x={room.x + room.width - 6} y={room.y - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-ne-resize" />
+                <rect data-id={room.id} data-handle="sw" x={room.x - 6} y={room.y + room.height - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-sw-resize" />
+                <rect data-id={room.id} data-handle="se" x={room.x + room.width - 6} y={room.y + room.height - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-se-resize" />
+                {/* Edge handles */}
+                <rect data-id={room.id} data-handle="n" x={room.x + room.width / 2 - 6} y={room.y - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-n-resize" />
+                <rect data-id={room.id} data-handle="s" x={room.x + room.width / 2 - 6} y={room.y + room.height - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-s-resize" />
+                <rect data-id={room.id} data-handle="w" x={room.x - 6} y={room.y + room.height / 2 - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-w-resize" />
+                <rect data-id={room.id} data-handle="e" x={room.x + room.width - 6} y={room.y + room.height / 2 - 6} width={12} height={12}
+                  fill="white" stroke="#2563eb" strokeWidth={2} rx={2} className="cursor-e-resize" />
               </>
             )}
           </g>
