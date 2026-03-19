@@ -38,6 +38,11 @@ const FloorPlanCanvas = () => {
     return Math.round(value / gridSize) * gridSize;
   };
 
+  // Physical scale conversion (meters per grid cell changes with gridSize)
+  const metersPerGrid = (METERS_PER_GRID * gridSize) / GRID_SIZE;
+  const toMeters = (px) => (px / gridSize) * metersPerGrid;
+  const toMetersStr = (px) => toMeters(px).toFixed(2);
+
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
@@ -100,7 +105,7 @@ const FloorPlanCanvas = () => {
         if (currentWallPoints.length >= 3) {
           const firstPoint = currentWallPoints[0];
           const distToStart = Math.hypot(firstPoint.x - point.x, firstPoint.y - point.y);
-          if (distToStart <= GRID_SIZE * 0.75) {
+          if (distToStart <= gridSize * 0.75) {
             const newAreaId = finishWallDrawing();
             if (newAreaId) setSelected(newAreaId, 'area');
             return;
@@ -203,7 +208,7 @@ const FloorPlanCanvas = () => {
       
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
-      const minSize = GRID_SIZE;
+      const minSize = gridSize;
       
       let newX = room.x;
       let newY = room.y;
@@ -308,7 +313,7 @@ const FloorPlanCanvas = () => {
     } else if (activeTool === 'room' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         const id = addRoom(x, y, Math.abs(width), Math.abs(height));
@@ -318,7 +323,7 @@ const FloorPlanCanvas = () => {
     } else if (activeTool === 'land' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         setLandBoundary(x, y, Math.abs(width), Math.abs(height));
@@ -328,7 +333,7 @@ const FloorPlanCanvas = () => {
     } else if (['garden', 'road', 'carport'].includes(activeTool) && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         const typeMap = { garden: 'garden', road: 'road', carport: 'carport' };
@@ -389,7 +394,7 @@ const FloorPlanCanvas = () => {
     };
 
     const { index, dist, proj } = findClosestSegment(currentWallPoints, clickPoint.x, clickPoint.y);
-    const insertThreshold = Math.min(GRID_SIZE, 12);
+    const insertThreshold = Math.min(gridSize, 12);
 
     if (index !== -1 && dist <= insertThreshold) {
       const snapX = snapToGrid(proj.x);
@@ -417,12 +422,25 @@ const FloorPlanCanvas = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if (isMod && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) deleteItem(selectedId);
       }
       if (e.key === 'Escape') {
         setSelected(null, null);
-        setRoomEditMode(false);
+        setEditingRoomId(null);
         setActiveTool('select');
       }
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
@@ -433,12 +451,14 @@ const FloorPlanCanvas = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, undo, redo]);
 
   const renderLandBoundary = () => {
     if (!landBoundary) return null;
     const { x, y, width, height } = landBoundary;
     const isSelected = selectedId === 'land-boundary';
+    const isHovered = hoveredId === 'land-boundary' && hoveredType === 'land-boundary';
+    const isActive = isSelected || isHovered;
     return (
       <g>
         <rect
@@ -446,7 +466,7 @@ const FloorPlanCanvas = () => {
           data-type="land-boundary"
           x={x} y={y} width={width} height={height}
           fill="none"
-          stroke={isSelected ? '#2563eb' : '#94a3b8'}
+          stroke={isActive ? '#2563eb' : '#94a3b8'}
           strokeWidth={2}
           strokeDasharray="12,6"
           className="cursor-move"
@@ -493,7 +513,7 @@ const FloorPlanCanvas = () => {
                 textAnchor="middle" fontSize={9} fill="#9ca3af" fontFamily="monospace"
                 className="pointer-events-none"
               >
-                {(el.width / GRID_SIZE * METERS_PER_GRID).toFixed(1)} x {(el.height / GRID_SIZE * METERS_PER_GRID).toFixed(1)}m
+                {toMeters(el.width).toFixed(1)} x {toMeters(el.height).toFixed(1)}m
               </text>
             )}
           </g>
@@ -507,8 +527,8 @@ const FloorPlanCanvas = () => {
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
         const isEditing = editingRoomId === room.id;
-        const w = (room.width / GRID_SIZE) * METERS_PER_GRID;
-        const h = (room.height / GRID_SIZE) * METERS_PER_GRID;
+        const w = toMeters(room.width);
+        const h = toMeters(room.height);
         const area = (w * h).toFixed(2);
         return (
           <g key={room.id}>
@@ -757,7 +777,7 @@ const FloorPlanCanvas = () => {
 
       const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
       const lengthPx = calcPolyLength(points);
-      const lengthM = (lengthPx / GRID_SIZE * METERS_PER_GRID).toFixed(2);
+      const lengthM = toMeters(lengthPx).toFixed(2);
 
       const firstPoint = points[0];
       const lastPoint = points[points.length - 1];
@@ -770,11 +790,11 @@ const FloorPlanCanvas = () => {
       };
 
       const lastSegmentLengthM = points.length >= 2
-        ? (Math.hypot(lastPoint.x - points[points.length - 2].x, lastPoint.y - points[points.length - 2].y) / GRID_SIZE * METERS_PER_GRID).toFixed(2)
+        ? toMeters(Math.hypot(lastPoint.x - points[points.length - 2].x, lastPoint.y - points[points.length - 2].y)).toFixed(2)
         : '0.00';
 
-      const areaM2 = points.length >= 3 ?
-        ((calcPolygonArea([...points, firstPoint]) / GRID_SIZE / GRID_SIZE) * METERS_PER_GRID * METERS_PER_GRID).toFixed(2)
+      const areaM2 = points.length >= 3
+        ? (calcPolygonArea([...points, firstPoint]) * (metersPerGrid / gridSize) ** 2).toFixed(2)
         : null;
 
       return (
@@ -879,12 +899,26 @@ const FloorPlanCanvas = () => {
       const x = width > 0 ? dragStart.x : dragStart.x + width;
       const y = height > 0 ? dragStart.y : dragStart.y + height;
       const fills = { room: '#eff6ff', land: 'transparent', garden: '#dcfce7', road: '#f3f4f6', carport: '#f9fafb' };
+      const widthM = toMeters(Math.abs(width));
+      const heightM = toMeters(Math.abs(height));
       return (
-        <rect
-          x={x} y={y} width={Math.abs(width)} height={Math.abs(height)}
-          fill={fills[activeTool] || '#f3f4f6'}
-          stroke="#2563eb" strokeWidth={2} strokeDasharray="6,4" opacity={0.7}
-        />
+        <>
+          <rect
+            x={x} y={y} width={Math.abs(width)} height={Math.abs(height)}
+            fill={fills[activeTool] || '#f3f4f6'}
+            stroke="#2563eb" strokeWidth={2} strokeDasharray="6,4" opacity={0.7}
+          />
+          <text
+            x={x + 8}
+            y={y - 8}
+            fontSize={10}
+            fill="#1f2937"
+            fontFamily="monospace"
+            className="pointer-events-none"
+          >
+            {widthM.toFixed(2)}m × {heightM.toFixed(2)}m
+          </text>
+        </>
       );
     }
 
@@ -958,12 +992,12 @@ const FloorPlanCanvas = () => {
         onWheel={handleWheel}
       >
         <defs>
-          <pattern id="smallGrid" width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
-            <rect width={GRID_SIZE} height={GRID_SIZE} fill="none" stroke="#e2e8f0" strokeWidth={0.5} />
+          <pattern id="smallGrid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+            <rect width={gridSize} height={gridSize} fill="none" stroke="#e2e8f0" strokeWidth={0.5} />
           </pattern>
-          <pattern id="grid" width={GRID_SIZE * 5} height={GRID_SIZE * 5} patternUnits="userSpaceOnUse">
-            <rect width={GRID_SIZE * 5} height={GRID_SIZE * 5} fill="url(#smallGrid)" />
-            <path d={`M ${GRID_SIZE * 5} 0 L 0 0 0 ${GRID_SIZE * 5}`} fill="none" stroke="#cbd5e1" strokeWidth={0.8} />
+          <pattern id="grid" width={gridSize * 5} height={gridSize * 5} patternUnits="userSpaceOnUse">
+            <rect width={gridSize * 5} height={gridSize * 5} fill="url(#smallGrid)" />
+            <path d={`M ${gridSize * 5} 0 L 0 0 0 ${gridSize * 5}`} fill="none" stroke="#cbd5e1" strokeWidth={0.8} />
           </pattern>
         </defs>
 

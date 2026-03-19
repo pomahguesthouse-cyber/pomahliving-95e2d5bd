@@ -105,6 +105,7 @@ const useFloorPlanStore = create((set, get) => ({
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
   setGridVisible: (visible) => set({ gridVisible: visible }),
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
+  setGridSize: (size) => set({ gridSize: size }),
   setShowText: (v) => set({ showText: v }),
   setShowDimensions: (v) => set({ showDimensions: v }),
   setShowLandDimensions: (v) => set({ showLandDimensions: v }),
