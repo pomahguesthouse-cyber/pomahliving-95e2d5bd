@@ -80,11 +80,18 @@ const FloorCanvas = () => {
     if (activeTool === 'wall') {
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
+      const isDoubleClick = e.detail === 2;
 
       if (isDrawingWall) {
         const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
         if (pointIndexAttr != null) {
           setWallPointDragIndex(Number(pointIndexAttr));
+          return;
+        }
+
+        // Prevent adding a point when the second click of a double-click occurs;
+        // the double-click handler will either insert a vertex or finish drawing.
+        if (isDoubleClick) {
           return;
         }
 
@@ -320,6 +327,9 @@ const FloorCanvas = () => {
 
   const handleDoubleClick = (e) => {
     if (activeTool === 'wall' && isDrawingWall) {
+      // If we're currently dragging a point, do nothing (dragging is already active).
+      if (wallPointDragIndex !== null) return;
+
       const clickPoint = getCanvasPoint(e);
 
       const pointRadius = 8;
@@ -328,7 +338,7 @@ const FloorCanvas = () => {
       });
 
       if (closestPointIndex !== -1) {
-        // Start dragging an existing point
+        // Start dragging an existing point.
         setWallPointDragIndex(closestPointIndex);
         return;
       }
