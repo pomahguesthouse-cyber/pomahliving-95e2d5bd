@@ -54,10 +54,10 @@ const useFloorPlanStore = create((set, get) => ({
     return Math.round(value / gridSize) * gridSize;
   },
   
-  // Freehand wall drawing state
-  isDrawingWall: false,
-  currentWallPoints: [],
-  previewWallPoints: [],
+  // Freehand boundary drawing state
+  isDrawingBoundary: false,
+  currentBoundaryPoints: [],
+  previewBoundaryPoints: [],
 
   _pushHistory: () => {
     const state = get();
@@ -96,16 +96,15 @@ const useFloorPlanStore = create((set, get) => ({
       activeTool: tool, 
       selectedId: null, 
       selectedType: null,
-      isDrawingWall: false,
-      currentWallPoints: [],
-      previewWallPoints: [],
+      isDrawingBoundary: false,
+      currentBoundaryPoints: [],
+      previewBoundaryPoints: [],
     });
   },
   
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
   setGridVisible: (visible) => set({ gridVisible: visible }),
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
-  setGridSize: (size) => set({ gridSize: size }),
   setShowText: (v) => set({ showText: v }),
   setShowDimensions: (v) => set({ showDimensions: v }),
   setShowLandDimensions: (v) => set({ showLandDimensions: v }),
