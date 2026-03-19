@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
 
-const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showText, showDimensions }) => {
+const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showText, showDimensions, showLandDimensions }) => {
   const renderLandBoundary = () => {
     if (!landBoundary) return null;
     const { x, y, width, height } = landBoundary;
@@ -23,6 +23,33 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
           strokeDasharray="12,6"
           className="cursor-move"
         />
+        {showLandDimensions && (
+          <>
+            <text
+              x={x + width / 2}
+              y={y - 8}
+              textAnchor="middle"
+              fontSize={9}
+              fill="#64748b"
+              fontFamily="monospace"
+              className="pointer-events-none"
+            >
+              {(width / GRID_SIZE * 0.1).toFixed(2)}m
+            </text>
+            <text
+              x={x + width + 8}
+              y={y + height / 2}
+              textAnchor="start"
+              dominantBaseline="middle"
+              fontSize={9}
+              fill="#64748b"
+              fontFamily="monospace"
+              className="pointer-events-none"
+            >
+              {(height / GRID_SIZE * 0.1).toFixed(2)}m
+            </text>
+          </>
+        )}
         {isSelected && (
           <ResizeHandles room={{ id: 'land-boundary', x, y, width, height, type: 'land-boundary' }} />
         )}

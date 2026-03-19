@@ -24,11 +24,11 @@ const FloorCanvas = () => {
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
-    uploadedImage, showText, showDimensions,
-    setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
+    uploadedImage, showText, showDimensions, showLandDimensions,
+    setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
-    isDrawingWall, wallDrawingPoints, wallPreviewEnd,
+    isDrawingWall, currentWallPoints, previewWallPoints,
     startWallDrawing, addWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
 
@@ -74,7 +74,7 @@ const FloorCanvas = () => {
     const point = getCanvasPoint(e);
 
     // Freehand wall drawing
-    if (activeTool === 'wall-freehand') {
+    if (activeTool === 'wall') {
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
       
@@ -86,7 +86,7 @@ const FloorCanvas = () => {
       return;
     }
 
-    if (['wall', 'land', 'room', 'garden', 'road', 'carport'].includes(activeTool)) {
+    if (['land', 'room', 'garden', 'road', 'carport'].includes(activeTool)) {
       setDragStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
       return;
     }
@@ -151,7 +151,7 @@ const FloorCanvas = () => {
     }
 
     // Update wall preview
-    if (activeTool === 'wall-freehand' && isDrawingWall) {
+    if (activeTool === 'wall' && isDrawingWall) {
       updateWallPreview(point.x, point.y);
       return;
     }
@@ -244,18 +244,6 @@ const FloorCanvas = () => {
       return;
     }
 
-    if (activeTool === 'wall' && dragStart) {
-      const endX = snapToGrid(point.x);
-      const endY = snapToGrid(point.y);
-      if (endX !== dragStart.x || endY !== dragStart.y) {
-        const id = addWall(dragStart.x, dragStart.y, endX, endY);
-        setSelected(id, 'wall');
-      }
-      setActiveTool('select');
-      setDragStart(null);
-      return;
-    }
-    
     if (activeTool === 'room' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
@@ -305,7 +293,7 @@ const FloorCanvas = () => {
   };
 
   const handleDoubleClick = (e) => {
-    if (activeTool === 'wall-freehand' && isDrawingWall) {
+    if (activeTool === 'wall' && isDrawingWall) {
       finishWallDrawing();
     }
   };
@@ -349,7 +337,6 @@ const FloorCanvas = () => {
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
       if (e.key === 'r' || e.key === 'R') setActiveTool('room');
       if (e.key === 'w' || e.key === 'W') setActiveTool('wall');
-      if (e.key === 'f' || e.key === 'F') setActiveTool('wall-freehand');
       if (e.key === 'd' || e.key === 'D') setActiveTool('door');
       if (e.key === 'n' || e.key === 'N') setActiveTool('window');
     };
@@ -361,7 +348,7 @@ const FloorCanvas = () => {
   const getCursor = () => {
     if (isPanning) return 'grabbing';
     if (activeTool === 'select') return 'default';
-    if (activeTool === 'wall-freehand') return 'crosshair';
+    if (activeTool === 'wall') return 'crosshair';
     return 'crosshair';
   };
 
@@ -399,17 +386,6 @@ const FloorCanvas = () => {
   const renderDrawingPreview = () => {
     if (!dragStart) return null;
     const point = mousePos;
-
-    if (activeTool === 'wall') {
-      return (
-        <line
-          x1={dragStart.x} y1={dragStart.y}
-          x2={snapToGrid(point.x)} y2={snapToGrid(point.y)}
-          stroke="#2563eb" strokeWidth={10}
-          strokeLinecap="butt" strokeDasharray="10,5" opacity={0.6}
-        />
-      );
-    }
 
     if (['room', 'land', 'garden', 'road', 'carport'].includes(activeTool)) {
       const width = snapToGrid(point.x) - dragStart.x;
@@ -457,6 +433,7 @@ const FloorCanvas = () => {
             selectedId={selectedId}
             showText={showText}
             showDimensions={showDimensions}
+            showLandDimensions={showLandDimensions}
           />
 
           <RoomLayer
@@ -492,8 +469,8 @@ const FloorCanvas = () => {
             showDimensions={showDimensions}
             onWallClick={(id) => setSelected(id, 'wall')}
             onDimensionEdit={(id, newLength) => updateWallLength(id, newLength)}
-            wallDrawingPoints={wallDrawingPoints}
-            wallPreviewEnd={wallPreviewEnd}
+            wallDrawingPoints={currentWallPoints}
+            wallPreviewEnd={previewWallPoints.length > 0 ? previewWallPoints[previewWallPoints.length - 1] : null}
             isDrawingWall={isDrawingWall}
           />
 
@@ -516,6 +493,7 @@ const FloorCanvas = () => {
           x={floatingPos.x}
           y={floatingPos.y - 50}
           selectedId={selectedId}
+          selectedType={selectedType}
         />
       )}
     </div>

@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { Type, Ruler, Trash2 } from 'lucide-react';
+import { Type, Ruler, Trash2, MapPin } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
-const FloatingToolbar = memo(({ x, y, selectedId }) => {
-  const { deleteItem, showText, setShowText, showDimensions, setShowDimensions } = useFloorPlanStore();
+const FloatingToolbar = memo(({ x, y, selectedId, selectedType }) => {
+  const { deleteItem, showText, setShowText, showDimensions, setShowDimensions, showLandDimensions, setShowLandDimensions } = useFloorPlanStore();
 
   return (
     <div
@@ -24,6 +24,15 @@ const FloatingToolbar = memo(({ x, y, selectedId }) => {
       >
         <Ruler size={13} />
       </button>
+      {selectedType === 'land-boundary' && (
+        <button
+          onClick={() => setShowLandDimensions(!showLandDimensions)}
+          className={`p-1.5 rounded transition-colors ${showLandDimensions ? 'bg-green-100 text-green-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
+          title="Toggle Land Dimensions"
+        >
+          <MapPin size={13} />
+        </button>
+      )}
       <div className="w-px h-4 bg-gray-200 mx-0.5" />
       <button
         onClick={() => deleteItem(selectedId)}
