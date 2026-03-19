@@ -76,19 +76,23 @@ const FloorPlanCanvas = () => {
       if (handle && id) {
         setResizingRoom(id);
         setResizeHandle(handle);
-        setResizeStart({ x: point.x, y: point.y });
+        setResizeStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
       } else if (id && type) {
         if (editingRoomId) {
           updateRoom(editingRoomId, { name: editingRoomName });
           setEditingRoomId(null);
         }
         setSelected(id, type);
+        setIsDragging(true);
+        setDragStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
       } else {
         if (editingRoomId) {
           updateRoom(editingRoomId, { name: editingRoomName });
           setEditingRoomId(null);
         }
         setSelected(null, null);
+        setIsDragging(false);
+        setDragStart(null);
       }
     }
   };
@@ -237,8 +241,9 @@ const FloorPlanCanvas = () => {
     }
 
     setIsDragging(false);
-    if (!['wall', 'room', 'land', 'garden', 'road', 'carport'].includes(activeTool)) {
-      setDragStart(null);
+    setDragStart(null);
+    if (isDragging && selectedId) {
+      useFloorPlanStore.getState()._pushHistory();
     }
   };
 
@@ -462,23 +467,23 @@ const FloorPlanCanvas = () => {
             {isSelected && !isEditing && (
               <>
                 {/* Corner handles */}
-                <rect data-id={room.id} data-handle="nw" x={room.x - 5} y={room.y - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-nw-resize" />
-                <rect data-id={room.id} data-handle="ne" x={room.x + room.width - 5} y={room.y - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-ne-resize" />
-                <rect data-id={room.id} data-handle="sw" x={room.x - 5} y={room.y + room.height - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-sw-resize" />
-                <rect data-id={room.id} data-handle="se" x={room.x + room.width - 5} y={room.y + room.height - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-se-resize" />
+                <rect data-id={room.id} data-handle="nw" x={room.x - 4} y={room.y - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-nw-resize" />
+                <rect data-id={room.id} data-handle="ne" x={room.x + room.width - 4} y={room.y - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-ne-resize" />
+                <rect data-id={room.id} data-handle="sw" x={room.x - 4} y={room.y + room.height - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-sw-resize" />
+                <rect data-id={room.id} data-handle="se" x={room.x + room.width - 4} y={room.y + room.height - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-se-resize" />
                 {/* Edge handles */}
-                <rect data-id={room.id} data-handle="n" x={room.x + room.width / 2 - 5} y={room.y - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-n-resize" />
-                <rect data-id={room.id} data-handle="s" x={room.x + room.width / 2 - 5} y={room.y + room.height - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-s-resize" />
-                <rect data-id={room.id} data-handle="w" x={room.x - 5} y={room.y + room.height / 2 - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-w-resize" />
-                <rect data-id={room.id} data-handle="e" x={room.x + room.width - 5} y={room.y + room.height / 2 - 5} width={10} height={10}
-                  fill="white" stroke="#2563eb" strokeWidth={1.5} rx={1} className="cursor-e-resize" />
+                <rect data-id={room.id} data-handle="n" x={room.x + room.width / 2 - 4} y={room.y - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-n-resize" />
+                <rect data-id={room.id} data-handle="s" x={room.x + room.width / 2 - 4} y={room.y + room.height - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-s-resize" />
+                <rect data-id={room.id} data-handle="w" x={room.x - 4} y={room.y + room.height / 2 - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-w-resize" />
+                <rect data-id={room.id} data-handle="e" x={room.x + room.width - 4} y={room.y + room.height / 2 - 4} width={8} height={8}
+                  fill="white" stroke="#2563eb" strokeWidth={1} rx={1} className="cursor-e-resize" />
               </>
             )}
           </g>
