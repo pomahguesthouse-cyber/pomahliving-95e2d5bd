@@ -428,7 +428,7 @@ const FloorCanvas = () => {
             <image href={uploadedImage} x={0} y={0} width={800} height={600} opacity={0.3} preserveAspectRatio="xMidYMid meet" />
           )}
 
-          <FilledAreaLayer areas={filledAreas} />
+          <FilledAreaLayer areas={filledAreas} showText={showText} showDimensions={showDimensions} />
 
           <SelectionLayer
             landBoundary={landBoundary}
