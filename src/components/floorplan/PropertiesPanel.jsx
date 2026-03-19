@@ -1,325 +1,225 @@
-import { RotateCw, Trash2, Move, Ruler, Maximize2 } from 'lucide-react';
+import { Trash2, MousePointer2 } from 'lucide-react';
 import useFloorPlanStore, { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
 
-const PropertySection = ({ title, children }) => (
-  <div className="mb-4">
-    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{title}</h4>
+const Section = ({ title, children }) => (
+  <div className="mb-5">
+    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">{title}</h4>
     {children}
   </div>
 );
 
-const PropertyRow = ({ label, children }) => (
+const Row = ({ label, children }) => (
   <div className="flex items-center justify-between py-1.5">
     <span className="text-sm text-gray-600">{label}</span>
-    <div className="flex items-center gap-2">{children}</div>
+    <div className="flex items-center gap-1.5">{children}</div>
   </div>
 );
 
-const Input = ({ value, onChange, unit, min, max }) => (
+const NumInput = ({ value, onChange, unit, min, max, step = 1 }) => (
   <div className="flex items-center gap-1">
     <input
       type="number"
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      min={min}
-      max={max}
-      className="w-16 px-2 py-1 text-sm text-right border border-gray-200 rounded focus:outline-none focus:border-cyan-500"
+      min={min} max={max} step={step}
+      className="w-16 px-2 py-1.5 text-sm text-right bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
     />
-    {unit && <span className="text-xs text-gray-400">{unit}</span>}
+    {unit && <span className="text-xs text-gray-400 w-4">{unit}</span>}
   </div>
+);
+
+const TextInput = ({ value, onChange }) => (
+  <input
+    type="text"
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    className="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+  />
 );
 
 const PropertiesPanel = () => {
   const {
-    walls,
-    rooms,
-    doors,
-    windows,
-    selectedId,
-    selectedType,
-    updateWall,
-    updateRoom,
-    updateDoor,
-    updateWindow,
-    deleteItem,
-    moveItem,
+    walls, rooms, doors, windows, openings, outdoorElements, landBoundary,
+    selectedId, selectedType,
+    updateWall, updateRoom, updateDoor, updateWindow, updateOpening,
+    updateOutdoorElement, updateLandBoundary, deleteItem,
   } = useFloorPlanStore();
 
-  const getSelectedItem = () => {
+  const getItem = () => {
     if (!selectedId) return null;
-    
     if (selectedType === 'wall') return walls.find((w) => w.id === selectedId);
     if (selectedType === 'room') return rooms.find((r) => r.id === selectedId);
     if (selectedType === 'door') return doors.find((d) => d.id === selectedId);
     if (selectedType === 'window') return windows.find((w) => w.id === selectedId);
+    if (selectedType === 'opening') return openings.find((o) => o.id === selectedId);
+    if (selectedType === 'outdoor') return outdoorElements.find((e) => e.id === selectedId);
+    if (selectedType === 'land-boundary') return landBoundary;
     return null;
   };
 
-  const item = getSelectedItem();
+  const item = getItem();
 
   if (!item) {
     return (
-      <div className="w-72 bg-white border-l border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Properties</h3>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Move size={32} className="text-gray-300 mb-3" />
-          <p className="text-sm text-gray-500">Select an element to view its properties</p>
+      <div className="w-72 bg-white border-l border-gray-100 p-5 flex flex-col">
+        <h3 className="text-sm font-semibold text-gray-900 mb-6">Properties</h3>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
+            <MousePointer2 size={20} className="text-gray-300" />
+          </div>
+          <p className="text-sm text-gray-400">Select an element to view its properties</p>
         </div>
-        
-        <div className="mt-6">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Stats</h4>
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Walls</span>
-              <span className="text-sm font-semibold text-gray-900">{walls.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Rooms</span>
-              <span className="text-sm font-semibold text-gray-900">{rooms.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Doors</span>
-              <span className="text-sm font-semibold text-gray-900">{doors.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Windows</span>
-              <span className="text-sm font-semibold text-gray-900">{windows.length}</span>
-            </div>
+        <div className="mt-auto pt-6">
+          <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Stats</h4>
+          <div className="bg-gray-50 rounded-2xl p-4 space-y-2.5">
+            {[
+              ['Walls', walls.length],
+              ['Rooms', rooms.length],
+              ['Doors', doors.length],
+              ['Windows', windows.length],
+            ].map(([label, count]) => (
+              <div key={label} className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">{label}</span>
+                <span className="text-sm font-semibold text-gray-800">{count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     );
   }
 
-  const renderWallProperties = () => {
-    const length = Math.sqrt(
-      Math.pow(item.x2 - item.x1, 2) + Math.pow(item.y2 - item.y1, 2)
-    );
-    
-    return (
-      <>
-        <PropertySection title="Dimensions">
-          <PropertyRow label="Length">
-            <span className="text-sm font-mono font-semibold text-gray-900">
-              {(length / GRID_SIZE).toFixed(2)}m
-            </span>
-          </PropertyRow>
-          <PropertyRow label="Thickness">
-            <Input
-              value={item.thickness}
-              onChange={(v) => updateWall(item.id, { thickness: v })}
-              unit="px"
-              min={12}
-              max={48}
-            />
-          </PropertyRow>
-          <PropertyRow label="Height">
-            <Input
-              value={item.height}
-              onChange={(v) => updateWall(item.id, { height: v })}
-              unit="mm"
-              min={2000}
-              max={4000}
-            />
-          </PropertyRow>
-        </PropertySection>
-        
-        <PropertySection title="Position">
-          <PropertyRow label="Start">
-            <span className="text-xs font-mono text-gray-500">
-              ({item.x1 / GRID_SIZE}, {item.y1 / GRID_SIZE})m
-            </span>
-          </PropertyRow>
-          <PropertyRow label="End">
-            <span className="text-xs font-mono text-gray-500">
-              ({item.x2 / GRID_SIZE}, {item.y2 / GRID_SIZE})m
-            </span>
-          </PropertyRow>
-        </PropertySection>
-        
-        <PropertySection title="Style">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Color</span>
-            <input
-              type="color"
-              value={item.color}
-              onChange={(e) => updateWall(item.id, { color: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer border-0"
-            />
-          </div>
-        </PropertySection>
-      </>
-    );
+  const typeLabels = {
+    wall: 'Wall', room: 'Room', door: 'Door', window: 'Window',
+    opening: 'Opening', outdoor: 'Outdoor', 'land-boundary': 'Land Boundary',
   };
 
-  const renderRoomProperties = () => {
+  const renderRoomProps = () => {
+    const w = item.width / GRID_SIZE;
+    const h = item.height / GRID_SIZE;
     return (
       <>
-        <PropertySection title="Dimensions">
-          <PropertyRow label="Width">
-            <Input
-              value={item.width / GRID_SIZE}
-              onChange={(v) => updateRoom(item.id, { width: v * GRID_SIZE })}
-              unit="m"
-              min={1}
-              max={20}
-            />
-          </PropertyRow>
-          <PropertyRow label="Height">
-            <Input
-              value={item.height / GRID_SIZE}
-              onChange={(v) => updateRoom(item.id, { height: v * GRID_SIZE })}
-              unit="m"
-              min={1}
-              max={20}
-            />
-          </PropertyRow>
-          <PropertyRow label="Area">
-            <span className="text-sm font-semibold text-gray-900">
-              {((item.width / GRID_SIZE) * (item.height / GRID_SIZE)).toFixed(1)}m²
-            </span>
-          </PropertyRow>
-        </PropertySection>
-        
-        <PropertySection title="Position">
-          <PropertyRow label="X">
-            <Input
-              value={item.x / GRID_SIZE}
-              onChange={(v) => updateRoom(item.id, { x: v * GRID_SIZE })}
-              unit="m"
-              min={0}
-              max={50}
-            />
-          </PropertyRow>
-          <PropertyRow label="Y">
-            <Input
-              value={item.y / GRID_SIZE}
-              onChange={(v) => updateRoom(item.id, { y: v * GRID_SIZE })}
-              unit="m"
-              min={0}
-              max={50}
-            />
-          </PropertyRow>
-        </PropertySection>
-        
-        <PropertySection title="Style">
-          <div className="flex items-center gap-2">
+        <Section title="Room Info">
+          <TextInput value={item.name} onChange={(v) => updateRoom(item.id, { name: v })} />
+        </Section>
+        <Section title="Dimensions">
+          <Row label="Width">
+            <NumInput value={w.toFixed(2)} onChange={(v) => updateRoom(item.id, { width: v * GRID_SIZE })} unit="m" min={1} max={50} step={0.5} />
+          </Row>
+          <Row label="Length">
+            <NumInput value={h.toFixed(2)} onChange={(v) => updateRoom(item.id, { height: v * GRID_SIZE })} unit="m" min={1} max={50} step={0.5} />
+          </Row>
+          <Row label="Luas">
+            <span className="text-sm font-semibold text-gray-800">{(w * h).toFixed(2)} m²</span>
+          </Row>
+          <Row label="Tinggi Ruangan">
+            <NumInput value={item.roomHeight || 3.2} onChange={(v) => updateRoom(item.id, { roomHeight: v })} unit="m" min={2.4} max={6} step={0.1} />
+          </Row>
+        </Section>
+        <Section title="Position">
+          <Row label="X"><NumInput value={(item.x / GRID_SIZE).toFixed(0)} onChange={(v) => updateRoom(item.id, { x: v * GRID_SIZE })} unit="m" /></Row>
+          <Row label="Y"><NumInput value={(item.y / GRID_SIZE).toFixed(0)} onChange={(v) => updateRoom(item.id, { y: v * GRID_SIZE })} unit="m" /></Row>
+        </Section>
+        <Section title="Style">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600">Fill</span>
-            <input
-              type="color"
-              value={item.fill}
-              onChange={(e) => updateRoom(item.id, { fill: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer border-0"
-            />
+            <input type="color" value={item.fill} onChange={(e) => updateRoom(item.id, { fill: e.target.value })}
+              className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" />
           </div>
-        </PropertySection>
+        </Section>
       </>
     );
   };
 
-  const renderDoorProperties = () => (
-    <>
-      <PropertySection title="Dimensions">
-        <PropertyRow label="Width">
-          <Input
-            value={item.width}
-            onChange={(v) => updateDoor(item.id, { width: v })}
-            unit="px"
-            min={60}
-            max={150}
-          />
-        </PropertyRow>
-      </PropertySection>
-      
-      <PropertySection title="Position">
-        <PropertyRow label="X">
-          <span className="text-xs font-mono text-gray-500">{item.x / GRID_SIZE}m</span>
-        </PropertyRow>
-        <PropertyRow label="Y">
-          <span className="text-xs font-mono text-gray-500">{item.y / GRID_SIZE}m</span>
-        </PropertyRow>
-        <PropertyRow label="Rotation">
-          <Input
-            value={item.rotation}
-            onChange={(v) => updateDoor(item.id, { rotation: v % 360 })}
-            unit="°"
-            min={0}
-            max={360}
-          />
-        </PropertyRow>
-      </PropertySection>
-    </>
-  );
-
-  const renderWindowProperties = () => (
-    <>
-      <PropertySection title="Dimensions">
-        <PropertyRow label="Width">
-          <Input
-            value={item.width}
-            onChange={(v) => updateWindow(item.id, { width: v })}
-            unit="px"
-            min={60}
-            max={200}
-          />
-        </PropertyRow>
-      </PropertySection>
-      
-      <PropertySection title="Position">
-        <PropertyRow label="X">
-          <span className="text-xs font-mono text-gray-500">{item.x / GRID_SIZE}m</span>
-        </PropertyRow>
-        <PropertyRow label="Y">
-          <span className="text-xs font-mono text-gray-500">{item.y / GRID_SIZE}m</span>
-        </PropertyRow>
-        <PropertyRow label="Rotation">
-          <Input
-            value={item.rotation}
-            onChange={(v) => updateWindow(item.id, { rotation: v % 360 })}
-            unit="°"
-            min={0}
-            max={360}
-          />
-        </PropertyRow>
-      </PropertySection>
-    </>
-  );
-
-  const getTypeIcon = () => {
-    if (selectedType === 'wall') return '🧱';
-    if (selectedType === 'room') return '📐';
-    if (selectedType === 'door') return '🚪';
-    if (selectedType === 'window') return '🪟';
-    return '📦';
+  const renderWallProps = () => {
+    const length = Math.sqrt((item.x2 - item.x1) ** 2 + (item.y2 - item.y1) ** 2);
+    return (
+      <>
+        <Section title="Dimensions">
+          <Row label="Length"><span className="text-sm font-mono font-semibold text-gray-800">{(length / GRID_SIZE).toFixed(2)}m</span></Row>
+          <Row label="Thickness"><NumInput value={item.thickness} onChange={(v) => updateWall(item.id, { thickness: v })} unit="px" min={8} max={48} /></Row>
+          <Row label="Height"><NumInput value={item.height} onChange={(v) => updateWall(item.id, { height: v })} unit="mm" min={2000} max={4000} /></Row>
+        </Section>
+        <Section title="Position">
+          <Row label="Start"><span className="text-xs font-mono text-gray-500">({(item.x1 / GRID_SIZE).toFixed(1)}, {(item.y1 / GRID_SIZE).toFixed(1)})m</span></Row>
+          <Row label="End"><span className="text-xs font-mono text-gray-500">({(item.x2 / GRID_SIZE).toFixed(1)}, {(item.y2 / GRID_SIZE).toFixed(1)})m</span></Row>
+        </Section>
+        <Section title="Style">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">Color</span>
+            <input type="color" value={item.color} onChange={(e) => updateWall(item.id, { color: e.target.value })}
+              className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" />
+          </div>
+        </Section>
+      </>
+    );
   };
+
+  const renderDoorWindowProps = (updateFn) => (
+    <>
+      <Section title="Dimensions">
+        <Row label="Width"><NumInput value={item.width} onChange={(v) => updateFn(item.id, { width: v })} unit="px" min={40} max={200} /></Row>
+      </Section>
+      <Section title="Position">
+        <Row label="X"><span className="text-xs font-mono text-gray-500">{(item.x / GRID_SIZE).toFixed(1)}m</span></Row>
+        <Row label="Y"><span className="text-xs font-mono text-gray-500">{(item.y / GRID_SIZE).toFixed(1)}m</span></Row>
+        <Row label="Rotation">
+          <NumInput value={item.rotation} onChange={(v) => updateFn(item.id, { rotation: v % 360 })} unit="°" min={0} max={360} />
+        </Row>
+      </Section>
+    </>
+  );
+
+  const renderLandProps = () => (
+    <Section title="Dimensions">
+      <Row label="Width"><NumInput value={(item.width / GRID_SIZE).toFixed(1)} onChange={(v) => updateLandBoundary({ width: v * GRID_SIZE })} unit="m" min={1} max={100} /></Row>
+      <Row label="Length"><NumInput value={(item.height / GRID_SIZE).toFixed(1)} onChange={(v) => updateLandBoundary({ height: v * GRID_SIZE })} unit="m" min={1} max={100} /></Row>
+      <Row label="Luas"><span className="text-sm font-semibold text-gray-800">{((item.width / GRID_SIZE) * (item.height / GRID_SIZE)).toFixed(2)} m²</span></Row>
+    </Section>
+  );
+
+  const renderOutdoorProps = () => (
+    <>
+      <Section title="Info">
+        <TextInput value={item.label} onChange={(v) => updateOutdoorElement(item.id, { label: v })} />
+      </Section>
+      <Section title="Dimensions">
+        <Row label="Width"><NumInput value={(item.width / GRID_SIZE).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { width: v * GRID_SIZE })} unit="m" /></Row>
+        <Row label="Length"><NumInput value={(item.height / GRID_SIZE).toFixed(1)} onChange={(v) => updateOutdoorElement(item.id, { height: v * GRID_SIZE })} unit="m" /></Row>
+      </Section>
+    </>
+  );
 
   return (
-    <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto">
+    <div className="w-72 bg-white border-l border-gray-100 p-5 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900">Properties</h3>
-        <button
-          onClick={() => deleteItem(selectedId)}
-          className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
-          title="Delete"
-        >
+        <button onClick={() => deleteItem(selectedId)}
+          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
           <Trash2 size={16} />
         </button>
       </div>
-      
-      <div className="bg-gray-50 rounded-xl p-3 mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{getTypeIcon()}</span>
-          <div>
-            <p className="text-sm font-medium text-gray-900 capitalize">{selectedType}</p>
-            <p className="text-xs text-gray-500 font-mono">{selectedId?.slice(0, 8)}...</p>
-          </div>
+
+      {/* Item info card */}
+      <div className="bg-gray-50 rounded-2xl p-3.5 mb-5 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+          <MousePointer2 size={16} className="text-blue-600" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{typeLabels[selectedType] || 'Element'}</p>
+          <p className="text-xs text-gray-400">
+            {selectedType === 'room' ? item.name : (item.label || selectedType)}
+          </p>
         </div>
       </div>
 
-      {selectedType === 'wall' && renderWallProperties()}
-      {selectedType === 'room' && renderRoomProperties()}
-      {selectedType === 'door' && renderDoorProperties()}
-      {selectedType === 'window' && renderWindowProperties()}
+      {selectedType === 'room' && renderRoomProps()}
+      {selectedType === 'wall' && renderWallProps()}
+      {selectedType === 'door' && renderDoorWindowProps(updateDoor)}
+      {selectedType === 'window' && renderDoorWindowProps(updateWindow)}
+      {selectedType === 'opening' && renderDoorWindowProps(updateOpening)}
+      {selectedType === 'land-boundary' && renderLandProps()}
+      {selectedType === 'outdoor' && renderOutdoorProps()}
     </div>
   );
 };

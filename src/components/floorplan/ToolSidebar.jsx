@@ -3,13 +3,15 @@ import {
   Square,
   Minus,
   DoorOpen,
-  SquareStack,
   Grid3X3,
   Trash2,
   Upload,
-  RotateCw,
-  Image,
   X,
+  Fence,
+  PanelTop,
+  Car,
+  TreePine,
+  Route,
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
@@ -19,20 +21,23 @@ const ToolButton = ({ icon: Icon, label, active, onClick, disabled }) => (
     disabled={disabled}
     title={label}
     className={`
-      w-10 h-10 flex items-center justify-center rounded-lg transition-all
+      w-14 flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl transition-all group relative
       ${active
-        ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30'
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
         : disabled
           ? 'text-gray-300 cursor-not-allowed'
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
       }
     `}
   >
-    <Icon size={18} />
+    <Icon size={20} strokeWidth={1.8} />
+    <span className={`text-[9px] font-medium leading-tight ${active ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`}>
+      {label}
+    </span>
   </button>
 );
 
-const Divider = () => <div className="w-full h-px bg-gray-200 my-2" />;
+const Divider = () => <div className="w-10 h-px bg-gray-200 my-1" />;
 
 const ToolSidebar = () => {
   const {
@@ -59,59 +64,98 @@ const ToolSidebar = () => {
   };
 
   return (
-    <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-1">
+    <div className="w-[72px] bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-0.5 overflow-y-auto">
       <ToolButton
         icon={MousePointer2}
-        label="Select (V)"
+        label="Select"
         active={activeTool === 'select'}
         onClick={() => setActiveTool('select')}
       />
-      
+
+      <Divider />
+
+      <ToolButton
+        icon={Fence}
+        label="Batas Lahan"
+        active={activeTool === 'land'}
+        onClick={() => setActiveTool('land')}
+      />
+
       <ToolButton
         icon={Square}
-        label="Room (R)"
+        label="Ruangan"
         active={activeTool === 'room'}
         onClick={() => setActiveTool('room')}
       />
-      
+
       <ToolButton
         icon={Minus}
-        label="Wall (W)"
+        label="Dinding"
         active={activeTool === 'wall'}
         onClick={() => setActiveTool('wall')}
       />
-      
+
       <Divider />
-      
+
       <ToolButton
         icon={DoorOpen}
-        label="Door (D)"
+        label="Pintu"
         active={activeTool === 'door'}
         onClick={() => setActiveTool('door')}
       />
-      
+
       <ToolButton
-        icon={SquareStack}
-        label="Window (N)"
+        icon={PanelTop}
+        label="Jendela"
         active={activeTool === 'window'}
         onClick={() => setActiveTool('window')}
       />
-      
+
+      <ToolButton
+        icon={Square}
+        label="Opening"
+        active={activeTool === 'opening'}
+        onClick={() => setActiveTool('opening')}
+      />
+
       <Divider />
-      
+
+      <ToolButton
+        icon={Car}
+        label="Car Porch"
+        active={activeTool === 'carport'}
+        onClick={() => setActiveTool('carport')}
+      />
+
+      <ToolButton
+        icon={Route}
+        label="Jalan"
+        active={activeTool === 'road'}
+        onClick={() => setActiveTool('road')}
+      />
+
+      <ToolButton
+        icon={TreePine}
+        label="Taman"
+        active={activeTool === 'garden'}
+        onClick={() => setActiveTool('garden')}
+      />
+
+      <Divider />
+
       <ToolButton
         icon={Grid3X3}
-        label="Toggle Grid"
+        label="Grid"
         active={gridVisible}
         onClick={() => setGridVisible(!gridVisible)}
       />
-      
+
       <ToolButton
         icon={Upload}
-        label="Upload Image"
+        label="Upload"
         onClick={() => document.getElementById('floorplan-upload').click()}
       />
-      
+
       <input
         type="file"
         id="floorplan-upload"
@@ -119,20 +163,20 @@ const ToolSidebar = () => {
         onChange={handleFileUpload}
         className="hidden"
       />
-      
+
       {uploadedImage && (
         <ToolButton
           icon={X}
-          label="Remove Image"
+          label="Hapus"
           onClick={clearUploadedImage}
         />
       )}
-      
+
       <div className="flex-1" />
-      
+
       <ToolButton
         icon={Trash2}
-        label="Delete (Del)"
+        label="Hapus"
         onClick={() => selectedId && deleteItem(selectedId)}
         disabled={!selectedId}
       />

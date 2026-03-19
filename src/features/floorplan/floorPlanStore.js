@@ -4,26 +4,69 @@ import { nanoid } from 'nanoid';
 const GRID_SIZE = 20;
 const WALL_THICKNESS = 24;
 const WALL_HEIGHT = 280;
+const MAX_HISTORY = 50;
 
 const useFloorPlanStore = create((set, get) => ({
   walls: [],
   rooms: [],
   doors: [],
   windows: [],
+  openings: [],
+  landBoundary: null,
+  outdoorElements: [],
   selectedId: null,
   selectedType: null,
   activeTool: 'select',
   gridVisible: true,
+  snapEnabled: true,
+  showText: true,
+  showDimensions: true,
   zoom: 1,
-  panOffset: { x: 0, y: 0 },
+  panOffset: { x: 100, y: 100 },
   isDrawing: false,
   drawingStart: null,
   uploadedImage: null,
+  history: [],
+  historyIndex: -1,
+
+  _pushHistory: () => {
+    const state = get();
+    const snapshot = {
+      walls: JSON.parse(JSON.stringify(state.walls)),
+      rooms: JSON.parse(JSON.stringify(state.rooms)),
+      doors: JSON.parse(JSON.stringify(state.doors)),
+      windows: JSON.parse(JSON.stringify(state.windows)),
+      openings: JSON.parse(JSON.stringify(state.openings)),
+      landBoundary: state.landBoundary ? JSON.parse(JSON.stringify(state.landBoundary)) : null,
+      outdoorElements: JSON.parse(JSON.stringify(state.outdoorElements)),
+    };
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(snapshot);
+    if (newHistory.length > MAX_HISTORY) newHistory.shift();
+    set({ history: newHistory, historyIndex: newHistory.length - 1 });
+  },
+
+  undo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex <= 0) return;
+    const prev = history[historyIndex - 1];
+    set({ ...prev, historyIndex: historyIndex - 1, selectedId: null, selectedType: null });
+  },
+
+  redo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex >= history.length - 1) return;
+    const next = history[historyIndex + 1];
+    set({ ...next, historyIndex: historyIndex + 1, selectedId: null, selectedType: null });
+  },
 
   setActiveTool: (tool) => set({ activeTool: tool, selectedId: null, selectedType: null }),
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
   setGridVisible: (visible) => set({ gridVisible: visible }),
-  
+  setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
+  setShowText: (v) => set({ showText: v }),
+  setShowDimensions: (v) => set({ showDimensions: v }),
+
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setPanOffset: (offset) => set({ panOffset: offset }),
 
@@ -40,21 +83,25 @@ const useFloorPlanStore = create((set, get) => ({
       color: '#374151',
     };
     set((state) => ({ walls: [...state.walls, wall] }));
+    get()._pushHistory();
     return id;
   },
 
-  addRoom: (x, y, width, height) => {
+  addRoom: (x, y, width, height, name) => {
     const id = nanoid();
     const room = {
       id,
+      name: name || 'Ruangan',
       x: Math.round(x / GRID_SIZE) * GRID_SIZE,
       y: Math.round(y / GRID_SIZE) * GRID_SIZE,
       width: Math.round(width / GRID_SIZE) * GRID_SIZE,
       height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+      roomHeight: 3.2,
       fill: '#f3f4f6',
       stroke: '#9ca3af',
     };
     set((state) => ({ rooms: [...state.rooms, room] }));
+    get()._pushHistory();
     return id;
   },
 
@@ -69,12 +116,13 @@ const useFloorPlanStore = create((set, get) => ({
       type: 'door',
     };
     set((state) => ({ doors: [...state.doors, door] }));
+    get()._pushHistory();
     return id;
   },
 
   addWindow: (x, y, rotation = 0) => {
     const id = nanoid();
-    const window = {
+    const win = {
       id,
       x: Math.round(x / GRID_SIZE) * GRID_SIZE,
       y: Math.round(y / GRID_SIZE) * GRID_SIZE,
@@ -82,7 +130,65 @@ const useFloorPlanStore = create((set, get) => ({
       rotation,
       type: 'window',
     };
-    set((state) => ({ windows: [...state.windows, window] }));
+    set((state) => ({ windows: [...state.windows, win] }));
+    get()._pushHistory();
+    return id;
+  },
+
+  addOpening: (x, y, rotation = 0) => {
+    const id = nanoid();
+    const opening = {
+      id,
+      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      width: 100,
+      rotation,
+      type: 'opening',
+    };
+    set((state) => ({ openings: [...state.openings, opening] }));
+    get()._pushHistory();
+    return id;
+  },
+
+  setLandBoundary: (x, y, width, height) => {
+    const boundary = {
+      id: 'land-boundary',
+      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
+      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+    };
+    set({ landBoundary: boundary });
+    get()._pushHistory();
+  },
+
+  updateLandBoundary: (updates) => {
+    set((state) => ({
+      landBoundary: state.landBoundary ? { ...state.landBoundary, ...updates } : null,
+    }));
+  },
+
+  addOutdoorElement: (type, x, y, width, height) => {
+    const id = nanoid();
+    const colors = {
+      garden: { fill: '#dcfce7', stroke: '#86efac', label: 'Taman' },
+      road: { fill: '#e5e7eb', stroke: '#9ca3af', label: 'Jalan' },
+      carport: { fill: '#f3f4f6', stroke: '#d1d5db', label: 'Car Porch' },
+    };
+    const config = colors[type] || colors.garden;
+    const element = {
+      id,
+      type,
+      label: config.label,
+      x: Math.round(x / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(y / GRID_SIZE) * GRID_SIZE,
+      width: Math.round(width / GRID_SIZE) * GRID_SIZE,
+      height: Math.round(height / GRID_SIZE) * GRID_SIZE,
+      fill: config.fill,
+      stroke: config.stroke,
+    };
+    set((state) => ({ outdoorElements: [...state.outdoorElements, element] }));
+    get()._pushHistory();
     return id;
   },
 
@@ -110,15 +216,31 @@ const useFloorPlanStore = create((set, get) => ({
     }));
   },
 
+  updateOpening: (id, updates) => {
+    set((state) => ({
+      openings: state.openings.map((o) => (o.id === id ? { ...o, ...updates } : o)),
+    }));
+  },
+
+  updateOutdoorElement: (id, updates) => {
+    set((state) => ({
+      outdoorElements: state.outdoorElements.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    }));
+  },
+
   deleteItem: (id) => {
     set((state) => ({
       walls: state.walls.filter((w) => w.id !== id),
       rooms: state.rooms.filter((r) => r.id !== id),
       doors: state.doors.filter((d) => d.id !== id),
       windows: state.windows.filter((w) => w.id !== id),
+      openings: state.openings.filter((o) => o.id !== id),
+      outdoorElements: state.outdoorElements.filter((e) => e.id !== id),
+      landBoundary: state.landBoundary?.id === id ? null : state.landBoundary,
       selectedId: state.selectedId === id ? null : state.selectedId,
       selectedType: state.selectedId === id ? null : state.selectedType,
     }));
+    get()._pushHistory();
   },
 
   moveItem: (id, type, dx, dy) => {
@@ -138,26 +260,32 @@ const useFloorPlanStore = create((set, get) => ({
     } else if (type === 'room') {
       const room = state.rooms.find((r) => r.id === id);
       if (room) {
-        get().updateRoom(id, {
-          x: snap(room.x + dx),
-          y: snap(room.y + dy),
-        });
+        get().updateRoom(id, { x: snap(room.x + dx), y: snap(room.y + dy) });
       }
     } else if (type === 'door') {
       const door = state.doors.find((d) => d.id === id);
       if (door) {
-        get().updateDoor(id, {
-          x: snap(door.x + dx),
-          y: snap(door.y + dy),
-        });
+        get().updateDoor(id, { x: snap(door.x + dx), y: snap(door.y + dy) });
       }
     } else if (type === 'window') {
       const win = state.windows.find((w) => w.id === id);
       if (win) {
-        get().updateWindow(id, {
-          x: snap(win.x + dx),
-          y: snap(win.y + dy),
-        });
+        get().updateWindow(id, { x: snap(win.x + dx), y: snap(win.y + dy) });
+      }
+    } else if (type === 'opening') {
+      const op = state.openings.find((o) => o.id === id);
+      if (op) {
+        get().updateOpening(id, { x: snap(op.x + dx), y: snap(op.y + dy) });
+      }
+    } else if (type === 'outdoor') {
+      const el = state.outdoorElements.find((e) => e.id === id);
+      if (el) {
+        get().updateOutdoorElement(id, { x: snap(el.x + dx), y: snap(el.y + dy) });
+      }
+    } else if (type === 'land-boundary') {
+      const lb = state.landBoundary;
+      if (lb) {
+        get().updateLandBoundary({ x: snap(lb.x + dx), y: snap(lb.y + dy) });
       }
     }
   },
@@ -165,23 +293,34 @@ const useFloorPlanStore = create((set, get) => ({
   setUploadedImage: (image) => set({ uploadedImage: image }),
   clearUploadedImage: () => set({ uploadedImage: null }),
 
-  clearAll: () => set({
-    walls: [],
-    rooms: [],
-    doors: [],
-    windows: [],
-    selectedId: null,
-    selectedType: null,
-  }),
+  clearAll: () => {
+    set({
+      walls: [],
+      rooms: [],
+      doors: [],
+      windows: [],
+      openings: [],
+      landBoundary: null,
+      outdoorElements: [],
+      selectedId: null,
+      selectedType: null,
+    });
+    get()._pushHistory();
+  },
 
   getWallLength: (wall) => {
     return Math.sqrt(Math.pow(wall.x2 - wall.x1, 2) + Math.pow(wall.y2 - wall.y1, 2));
   },
 
   getRoomArea: (room) => {
-    return ((room.width / GRID_SIZE) * (room.height / GRID_SIZE)).toFixed(1);
+    return ((room.width / GRID_SIZE) * (room.height / GRID_SIZE)).toFixed(2);
+  },
+
+  exportJSON: () => {
+    const { walls, rooms, doors, windows, openings, landBoundary, outdoorElements } = get();
+    return JSON.stringify({ walls, rooms, doors, windows, openings, landBoundary, outdoorElements }, null, 2);
   },
 }));
 
 export default useFloorPlanStore;
-export { GRID_SIZE };
+export { GRID_SIZE, WALL_THICKNESS };
