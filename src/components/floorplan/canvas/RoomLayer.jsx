@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
 import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 
@@ -20,7 +20,7 @@ const RoomLayer = memo(({
 
   const renderRoomDimension = (room, isHorizontal, position) => {
     const length = isHorizontal ? room.width : room.height;
-    const lengthMeters = (length / GRID_SIZE * 0.1).toFixed(2);
+    const lengthMeters = (length / GRID_SIZE * METERS_PER_GRID).toFixed(2);
     const mx = isHorizontal ? room.x + room.width / 2 : room.x - 10;
     const my = isHorizontal ? room.y - 10 : room.y + room.height / 2;
     const isEditing = isHorizontal ? editingWidth === room.id : editingHeight === room.id;
@@ -35,9 +35,10 @@ const RoomLayer = memo(({
           y={my}
           isHorizontal={isHorizontal}
           onSubmit={(val) => {
+            const newLengthPx = Math.round((val / METERS_PER_GRID) * GRID_SIZE);
             const updates = isHorizontal 
-              ? { width: val * 20 } 
-              : { height: val * 20 };
+              ? { width: newLengthPx } 
+              : { height: newLengthPx };
             onRoomUpdate?.(room.id, updates);
             if (isHorizontal) setEditingWidth(null);
             else setEditingHeight(null);
@@ -83,9 +84,9 @@ const RoomLayer = memo(({
       {rooms.map((room) => {
         const isSelected = selectedId === room.id;
         const isEditing = editingRoomId === room.id;
-        const wMeters = (room.width / GRID_SIZE * 0.1).toFixed(2);
-        const hMeters = (room.height / GRID_SIZE * 0.1).toFixed(2);
-        const area = (room.width / GRID_SIZE * 0.1 * (room.height / GRID_SIZE * 0.1)).toFixed(2);
+        const wMeters = (room.width / GRID_SIZE * METERS_PER_GRID).toFixed(2);
+        const hMeters = (room.height / GRID_SIZE * METERS_PER_GRID).toFixed(2);
+        const area = (room.width / GRID_SIZE * METERS_PER_GRID * (room.height / GRID_SIZE * METERS_PER_GRID)).toFixed(2);
 
         return (
           <g key={room.id}>

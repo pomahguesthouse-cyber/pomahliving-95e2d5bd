@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 
 const GRID_SIZE = 20;
+// Each grid cell represents this many meters.
+// Small grid = 0.5m, large grid = 1m.
+const METERS_PER_GRID = 0.5;
 const WALL_THICKNESS = 10;
 const WALL_HEIGHT = 280;
 const MAX_HISTORY = 50;
@@ -564,4 +567,4 @@ const useFloorPlanStore = create((set, get) => ({
 }));
 
 export default useFloorPlanStore;
-export { GRID_SIZE, WALL_THICKNESS };
+export { GRID_SIZE, METERS_PER_GRID, WALL_THICKNESS };

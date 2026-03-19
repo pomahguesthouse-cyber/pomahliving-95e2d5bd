@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { GRID_SIZE, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
+import { GRID_SIZE, METERS_PER_GRID, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
 import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 
 const AreaLayer = memo(({ 
@@ -75,13 +75,13 @@ const AreaLayer = memo(({
               fontFamily="monospace"
               className="pointer-events-none"
             >
-              {(length / GRID_SIZE * 0.1).toFixed(2)}m
+              {(length / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
             </text>
           </g>
         )}
         {isEditing && (
           <InlineDimensionEditor
-            value={(length / GRID_SIZE * 0.1).toFixed(2)}
+            value={(length / GRID_SIZE * METERS_PER_GRID).toFixed(2)}
             x={mx}
             y={my}
             isHorizontal={isHorizontal}

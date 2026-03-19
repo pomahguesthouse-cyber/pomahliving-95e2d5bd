@@ -1,13 +1,14 @@
 import { memo } from 'react';
+import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 
 const DimensionLabel = memo(({ x1, y1, x2, y2, offset = 10 }) => {
   const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-  if (len < 20) return null;
+  if (len < GRID_SIZE) return null;
 
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
   const isHorizontal = Math.abs(y2 - y1) < Math.abs(x2 - x1);
-  const meters = (len / 20 * 0.1).toFixed(2);
+  const meters = (len / GRID_SIZE * METERS_PER_GRID).toFixed(2);
 
   return (
     <g className="pointer-events-none">

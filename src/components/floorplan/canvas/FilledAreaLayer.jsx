@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
 
-const toMeters = (px) => (px / GRID_SIZE * 0.1);
+const toMeters = (px) => (px / GRID_SIZE * METERS_PER_GRID);
 
 const getPolygonCentroid = (points) => {
   const n = points.length;
@@ -45,7 +45,7 @@ const getPolygonAreaMeters = (points) => {
     area += x0 * y1 - x1 * y0;
   }
   area = Math.abs(area) / 2;
-  const scale = 0.1 / GRID_SIZE;
+  const scale = METERS_PER_GRID / GRID_SIZE;
   return area * scale * scale;
 };
 

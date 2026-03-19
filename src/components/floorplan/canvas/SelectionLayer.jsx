@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
 
 const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showText, showDimensions, showLandDimensions }) => {
@@ -34,7 +34,7 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
               fontFamily="monospace"
               className="pointer-events-none"
             >
-              {(width / GRID_SIZE * 0.1).toFixed(2)}m
+              {(width / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
             </text>
             <text
               x={x + width + 8}
@@ -46,7 +46,7 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
               fontFamily="monospace"
               className="pointer-events-none"
             >
-              {(height / GRID_SIZE * 0.1).toFixed(2)}m
+              {(height / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
             </text>
           </>
         )}
@@ -100,7 +100,7 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
                 fontFamily="monospace"
                 className="pointer-events-none"
               >
-                {(el.width / GRID_SIZE * 0.1).toFixed(2)} x {(el.height / GRID_SIZE * 0.1).toFixed(2)}m
+                {(el.width / GRID_SIZE * METERS_PER_GRID).toFixed(2)} x {(el.height / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
               </text>
             )}
           </g>
