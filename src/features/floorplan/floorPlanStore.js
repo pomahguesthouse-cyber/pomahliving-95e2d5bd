@@ -14,6 +14,7 @@ const useFloorPlanStore = create((set, get) => ({
   openings: [],
   landBoundary: null,
   outdoorElements: [],
+  filledAreas: [],
   selectedId: null,
   selectedType: null,
   activeTool: 'select',
@@ -43,6 +44,7 @@ const useFloorPlanStore = create((set, get) => ({
       openings: JSON.parse(JSON.stringify(state.openings)),
       landBoundary: state.landBoundary ? JSON.parse(JSON.stringify(state.landBoundary)) : null,
       outdoorElements: JSON.parse(JSON.stringify(state.outdoorElements)),
+      filledAreas: JSON.parse(JSON.stringify(state.filledAreas)),
     };
     const newHistory = state.history.slice(0, state.historyIndex + 1);
     newHistory.push(snapshot);
@@ -117,11 +119,21 @@ const useFloorPlanStore = create((set, get) => ({
       set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [] });
       return;
     }
-    
+
+    const firstPoint = currentWallPoints[0];
+    const lastPoint = currentWallPoints[currentWallPoints.length - 1];
+    const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
+    const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= GRID_SIZE;
+
+    // If the curve closes, snap the last point to the first to ensure a perfect loop.
+    const points = isClosedLoop
+      ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
+      : currentWallPoints;
+
     const newWalls = [];
-    for (let i = 0; i < currentWallPoints.length - 1; i++) {
-      const p1 = currentWallPoints[i];
-      const p2 = currentWallPoints[i + 1];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
       if (Math.abs(dx) >= GRID_SIZE || Math.abs(dy) >= GRID_SIZE) {
@@ -137,10 +149,18 @@ const useFloorPlanStore = create((set, get) => ({
         });
       }
     }
-    
+
+    let filledAreaPoints = null;
+    if (isClosedLoop) {
+      filledAreaPoints = points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
+    }
+
     if (newWalls.length > 0) {
       set((state) => ({
         walls: [...state.walls, ...newWalls],
+        filledAreas: isClosedLoop
+          ? [...state.filledAreas, { id: nanoid(), points: filledAreaPoints, fill: 'rgba(59,130,246,0.12)', stroke: '#2563eb' }]
+          : state.filledAreas,
         isDrawingWall: false,
         currentWallPoints: [],
         previewWallPoints: [],
@@ -309,6 +329,19 @@ const useFloorPlanStore = create((set, get) => ({
     return id;
   },
 
+  addFilledArea: (points, options = {}) => {
+    const id = nanoid();
+    const area = {
+      id,
+      points: points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+      fill: options.fill || 'rgba(59,130,246,0.12)',
+      stroke: options.stroke || '#2563eb',
+    };
+    set((state) => ({ filledAreas: [...state.filledAreas, area] }));
+    get()._pushHistory();
+    return id;
+  },
+
   updateWall: (id, updates) => {
     set((state) => ({
       walls: state.walls.map((w) => (w.id === id ? { ...w, ...updates } : w)),
@@ -358,6 +391,7 @@ const useFloorPlanStore = create((set, get) => ({
       doors: state.doors.filter((d) => d.id !== id),
       windows: state.windows.filter((w) => w.id !== id),
       openings: state.openings.filter((o) => o.id !== id),
+      filledAreas: state.filledAreas.filter((f) => f.id !== id),
       outdoorElements: state.outdoorElements.filter((e) => e.id !== id),
       landBoundary: state.landBoundary?.id === id ? null : state.landBoundary,
       selectedId: state.selectedId === id ? null : state.selectedId,
@@ -423,6 +457,7 @@ const useFloorPlanStore = create((set, get) => ({
       doors: [],
       windows: [],
       openings: [],
+      filledAreas: [],
       landBoundary: null,
       outdoorElements: [],
       selectedId: null,
@@ -443,8 +478,8 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   exportJSON: () => {
-    const { walls, rooms, doors, windows, openings, landBoundary, outdoorElements } = get();
-    return JSON.stringify({ walls, rooms, doors, windows, openings, landBoundary, outdoorElements }, null, 2);
+    const { walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas } = get();
+    return JSON.stringify({ walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas }, null, 2);
   },
 }));
 

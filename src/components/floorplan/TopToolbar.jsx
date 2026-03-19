@@ -69,6 +69,7 @@ const TopToolbar = () => {
         doors: parsed.doors || [],
         windows: parsed.windows || [],
         openings: parsed.openings || [],
+        filledAreas: parsed.filledAreas || [],
         selectedId: null,
         selectedType: null,
       });

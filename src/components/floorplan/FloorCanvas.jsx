@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import useFloorPlanStore, { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
 import FloatingToolbar from './ui/FloatingToolbar';
 import GridLayer from './canvas/GridLayer';
+import FilledAreaLayer from './canvas/FilledAreaLayer';
 import RoomLayer from './canvas/RoomLayer';
 import WallLayer from './canvas/WallLayer';
 import OpeningLayer from './canvas/OpeningLayer';
@@ -22,7 +23,7 @@ const FloorCanvas = () => {
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const {
-    walls, rooms, doors, windows, openings, landBoundary, outdoorElements,
+    walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions, showLandDimensions,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
@@ -426,6 +427,8 @@ const FloorCanvas = () => {
           {uploadedImage && (
             <image href={uploadedImage} x={0} y={0} width={800} height={600} opacity={0.3} preserveAspectRatio="xMidYMid meet" />
           )}
+
+          <FilledAreaLayer areas={filledAreas} />
 
           <SelectionLayer
             landBoundary={landBoundary}
