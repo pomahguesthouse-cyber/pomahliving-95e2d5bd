@@ -1,17 +1,6 @@
 import {
-  MousePointer2,
-  Square,
-  Minus,
-  DoorOpen,
-  Grid3X3,
-  Trash2,
-  Upload,
-  X,
-  Fence,
-  PanelTop,
-  Car,
-  TreePine,
-  Route,
+  MousePointer2, Square, Minus, DoorOpen, PanelTop,
+  Grid3X3, Trash2, Upload, X, Fence, Car, TreePine, Route
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
@@ -41,24 +30,15 @@ const Divider = () => <div className="w-10 h-px bg-gray-200 my-1" />;
 
 const ToolSidebar = () => {
   const {
-    activeTool,
-    setActiveTool,
-    gridVisible,
-    setGridVisible,
-    deleteItem,
-    selectedId,
-    uploadedImage,
-    setUploadedImage,
-    clearUploadedImage,
+    activeTool, setActiveTool, gridVisible, setGridVisible,
+    deleteItem, selectedId, uploadedImage, setUploadedImage, clearUploadedImage,
   } = useFloorPlanStore();
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setUploadedImage(event.target.result);
-      };
+      reader.onload = (event) => setUploadedImage(event.target.result);
       reader.readAsDataURL(file);
     }
   };
@@ -76,7 +56,7 @@ const ToolSidebar = () => {
 
       <ToolButton
         icon={Fence}
-        label="Batas Lahan"
+        label="Batas"
         active={activeTool === 'land'}
         onClick={() => setActiveTool('land')}
       />
@@ -165,11 +145,7 @@ const ToolSidebar = () => {
       />
 
       {uploadedImage && (
-        <ToolButton
-          icon={X}
-          label="Hapus"
-          onClick={clearUploadedImage}
-        />
+        <ToolButton icon={X} label="Hapus" onClick={clearUploadedImage} />
       )}
 
       <div className="flex-1" />
