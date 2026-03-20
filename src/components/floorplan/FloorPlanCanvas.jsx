@@ -12,7 +12,8 @@ const FloorPlanCanvas = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [editingRoomName, setEditingRoomName] = useState('');
-  const [resizingRoom, setResizingRoom] = useState(null);
+  const [resizingId, setResizingId] = useState(null);
+  const [resizingType, setResizingType] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
   const [wallPointIndex, setWallPointIndex] = useState(null);
@@ -26,7 +27,7 @@ const FloorPlanCanvas = () => {
     setActiveTool, setSelected, addWall, addRoom, addDoor, addWindow,
     undo, redo,
     addOpening, setLandBoundary, addOutdoorElement,
-    moveItem, deleteItem, setZoom, setPanOffset, updateRoom,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateOutdoorElement,
     // wall-drawing state/actions
     isDrawingWall, currentWallPoints, previewWallPoints,
     startWallDrawing, addWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
@@ -139,7 +140,8 @@ const FloorPlanCanvas = () => {
       const handle = target.getAttribute('data-handle');
       
       if (handle && id) {
-        setResizingRoom(id);
+        setResizingId(id);
+        setResizingType(type);
         setResizeHandle(handle);
         setResizeStart({ x: snapToGrid(point.x), y: snapToGrid(point.y) });
       } else if (id && type) {
@@ -197,60 +199,54 @@ const FloorPlanCanvas = () => {
       return;
     }
 
-    if (resizingRoom && resizeHandle && resizeStart) {
-      const room = rooms.find((r) => r.id === resizingRoom);
-      if (!room) return;
+    if (resizingId && resizeHandle && resizeStart) {
+      let item;
+      if (resizingType === 'room') {
+        item = rooms.find((r) => r.id === resizingId);
+      } else if (resizingType === 'outdoor') {
+        item = outdoorElements.find((o) => o.id === resizingId);
+      }
+      if (!item) return;
       
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
       const minSize = GRID_SIZE;
       
-      let newX = room.x;
-      let newY = room.y;
-      let newWidth = room.width;
-      let newHeight = room.height;
+      let newX = item.x;
+      let newY = item.y;
+      let newWidth = item.width;
+      let newHeight = item.height;
 
       if (resizeHandle === 'nw') {
         const dx = snappedX - resizeStart.x;
         const dy = snappedY - resizeStart.y;
-        const newW = Math.max(minSize, room.width - dx);
-        const newH = Math.max(minSize, room.height - dy);
-        newX = room.x + room.width - newW;
-        newY = room.y + room.height - newH;
-        newWidth = newW;
-        newHeight = newH;
+        newWidth = Math.max(minSize, item.width - dx);
+        newHeight = Math.max(minSize, item.height - dy);
+        newX = item.x + item.width - newWidth;
+        newY = item.y + item.height - newHeight;
       } else if (resizeHandle === 'ne') {
-        const dx = snappedX - resizeStart.x;
         const dy = snappedY - resizeStart.y;
-        newWidth = Math.max(minSize, room.width + dx);
-        newY = room.y + room.height - Math.max(minSize, room.height - dy);
-        newHeight = Math.max(minSize, room.height - dy);
+        newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
+        newY = item.y + item.height - Math.max(minSize, item.height - dy);
+        newHeight = Math.max(minSize, item.height - dy);
       } else if (resizeHandle === 'sw') {
         const dx = snappedX - resizeStart.x;
-        const dy = snappedY - resizeStart.y;
-        const newW = Math.max(minSize, room.width - dx);
-        newX = room.x + room.width - newW;
-        newWidth = newW;
-        newHeight = Math.max(minSize, room.height + dy);
+        newWidth = Math.max(minSize, item.width - dx);
+        newX = item.x + item.width - newWidth;
+        newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
       } else if (resizeHandle === 'se') {
-        const dx = snappedX - resizeStart.x;
-        const dy = snappedY - resizeStart.y;
-        newWidth = Math.max(minSize, room.width + dx);
-        newHeight = Math.max(minSize, room.height + dy);
+        newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
+        newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
       } else if (resizeHandle === 'n') {
-        const dy = snappedY - resizeStart.y;
-        newY = room.y + dy;
-        newHeight = Math.max(minSize, room.height - dy);
+        newY = item.y + (snappedY - resizeStart.y);
+        newHeight = Math.max(minSize, item.height - (snappedY - resizeStart.y));
       } else if (resizeHandle === 's') {
-        const dy = snappedY - resizeStart.y;
-        newHeight = Math.max(minSize, room.height + dy);
+        newHeight = Math.max(minSize, item.height + (snappedY - resizeStart.y));
       } else if (resizeHandle === 'w') {
-        const dx = snappedX - resizeStart.x;
-        newX = room.x + dx;
-        newWidth = Math.max(minSize, room.width - dx);
+        newX = item.x + (snappedX - resizeStart.x);
+        newWidth = Math.max(minSize, item.width - (snappedX - resizeStart.x));
       } else if (resizeHandle === 'e') {
-        const dx = snappedX - resizeStart.x;
-        newWidth = Math.max(minSize, room.width + dx);
+        newWidth = Math.max(minSize, item.width + (snappedX - resizeStart.x));
       }
 
       newX = snapToGrid(newX);
@@ -258,7 +254,11 @@ const FloorPlanCanvas = () => {
       newWidth = snapToGrid(newWidth);
       newHeight = snapToGrid(newHeight);
 
-      updateRoom(resizingRoom, { x: newX, y: newY, width: newWidth, height: newHeight });
+      if (resizingType === 'room') {
+        updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+      } else if (resizingType === 'outdoor') {
+        updateOutdoorElement(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+      }
       setResizeStart({ x: snappedX, y: snappedY });
       return;
     }
@@ -289,9 +289,10 @@ const FloorPlanCanvas = () => {
       return;
     }
 
-    if (resizingRoom) {
+    if (resizingId) {
       useFloorPlanStore.getState()._pushHistory();
-      setResizingRoom(null);
+      setResizingId(null);
+      setResizingType(null);
       setResizeHandle(null);
       setResizeStart(null);
       return;

@@ -185,11 +185,12 @@ const FloorCanvas = () => {
       const snappedY = snapToGrid(point.y);
       const minSize = GRID_SIZE;
 
-      if (resizingType === 'room' || resizingType === 'land-boundary' || resizingType === 'area') {
+      if (resizingType === 'room' || resizingType === 'land-boundary' || resizingType === 'area' || resizingType === 'outdoor') {
         let item;
         if (resizingType === 'room') item = rooms.find((r) => r.id === resizingId);
         else if (resizingType === 'land-boundary') item = landBoundary;
-        else item = filledAreas.find((a) => a.id === resizingId);
+        else if (resizingType === 'area') item = filledAreas.find((a) => a.id === resizingId);
+        else item = outdoorElements.find((o) => o.id === resizingId);
         if (!item) return;
 
         let newX = item.x, newY = item.y, newWidth = item.width, newHeight = item.height;
@@ -235,9 +236,11 @@ const FloorCanvas = () => {
           updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
         } else if (resizingType === 'land-boundary') {
           updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight });
-        } else {
-          // area
+        } else if (resizingType === 'area') {
           useFloorPlanStore.getState().updateFilledArea(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+        } else {
+          // outdoor (carport, garden, road)
+          useFloorPlanStore.getState().updateOutdoorElement(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
         }
         setResizeStart({ x: snappedX, y: snappedY });
       }

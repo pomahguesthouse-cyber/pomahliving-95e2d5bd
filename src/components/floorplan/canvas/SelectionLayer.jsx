@@ -103,6 +103,9 @@ const SelectionLayer = memo(({ landBoundary, outdoorElements, selectedId, showTe
                 {(el.width / GRID_SIZE * METERS_PER_GRID).toFixed(2)} x {(el.height / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
               </text>
             )}
+            {isSelected && (
+              <ResizeHandles room={{ id: el.id, x: el.x, y: el.y, width: el.width, height: el.height, type: 'outdoor' }} />
+            )}
           </g>
         );
       })}
