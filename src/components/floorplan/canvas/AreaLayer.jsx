@@ -154,7 +154,6 @@ const AreaLayer = memo(({
         ))}
         {wallPreviewEnd && (
           <circle
-            data-wall-point-index={points.length}
             cx={wallPreviewEnd.x}
             cy={wallPreviewEnd.y}
             r={4}

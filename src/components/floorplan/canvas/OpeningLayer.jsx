@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-const OpeningLayer = memo(({ doors, windows, openings, selectedId, showDimensions, onDoorClick, onWindowClick }) => {
+const OpeningLayer = memo(({ doors, windows, openings, selectedId, showDimensions, onDoorClick, onWindowClick, onOpeningClick }) => {
   return (
     <g>
       {doors.map((door) => {
@@ -84,6 +84,7 @@ const OpeningLayer = memo(({ doors, windows, openings, selectedId, showDimension
               strokeWidth={4}
               strokeDasharray="8,6"
               className="cursor-move"
+              onClick={() => onOpeningClick?.(op.id)}
             />
           </g>
         );

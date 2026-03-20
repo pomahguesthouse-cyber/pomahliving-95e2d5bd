@@ -27,6 +27,7 @@ const FloorCanvas = () => {
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions, showLandDimensions,
     snapEnabled, gridSize,
+    setGridVisible, setSnapEnabled,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
@@ -448,15 +449,19 @@ const FloorCanvas = () => {
       }
       
       if (e.key === 'v' || e.key === 'V') setActiveTool('select');
+      if (e.key === 'q' || e.key === 'Q') setActiveTool('room');
       if (e.key === 'r' || e.key === 'R') setActiveTool('room');
       if (e.key === 'w' || e.key === 'W') setActiveTool('wall');
       if (e.key === 'd' || e.key === 'D') setActiveTool('door');
       if (e.key === 'n' || e.key === 'N') setActiveTool('window');
+      if (e.key === 'o' || e.key === 'O') setActiveTool('opening');
+      if (e.key === 'g' || e.key === 'G') setGridVisible(!gridVisible);
+      if (e.key === 's' || e.key === 'S') setSnapEnabled(!snapEnabled);
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints, setGridVisible, gridVisible, setSnapEnabled, snapEnabled]);
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';
@@ -640,6 +645,7 @@ const FloorCanvas = () => {
             showDimensions={showDimensions}
             onDoorClick={(id) => setSelected(id, 'door')}
             onWindowClick={(id) => setSelected(id, 'window')}
+            onOpeningClick={(id) => setSelected(id, 'opening')}
           />
 
           {renderDrawingPreview()}

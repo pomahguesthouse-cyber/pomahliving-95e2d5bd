@@ -1,6 +1,6 @@
 import {
   MousePointer2, Square, Minus, DoorOpen, PanelTop,
-  Grid3X3, Trash2, Upload, X, Fence, Car, TreePine, Route,
+  Grid3X3, Trash2, Upload, X, Fence, Car, TreePine, Route, Magnet,
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
@@ -31,6 +31,7 @@ const Divider = () => <div className="w-10 h-px bg-gray-200 my-1" />;
 const ToolSidebar = () => {
   const {
     activeTool, setActiveTool, gridVisible, setGridVisible,
+    snapEnabled, setSnapEnabled,
     deleteItem, selectedId, uploadedImage, setUploadedImage, clearUploadedImage,
   } = useFloorPlanStore();
 
@@ -63,7 +64,7 @@ const ToolSidebar = () => {
 
       <ToolButton
         icon={Square}
-        label="Ruangan"
+        label="Rect"
         active={activeTool === 'room'}
         onClick={() => setActiveTool('room')}
       />
@@ -128,6 +129,13 @@ const ToolSidebar = () => {
         label="Grid"
         active={gridVisible}
         onClick={() => setGridVisible(!gridVisible)}
+      />
+
+      <ToolButton
+        icon={Magnet}
+        label="Snap"
+        active={snapEnabled}
+        onClick={() => setSnapEnabled(!snapEnabled)}
       />
 
       <ToolButton
