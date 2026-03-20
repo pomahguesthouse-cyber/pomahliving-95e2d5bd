@@ -9,6 +9,65 @@ const METERS_PER_GRID = 0.5;
 const WALL_THICKNESS = 10;
 const WALL_HEIGHT = 280;
 const MAX_HISTORY = 50;
+const VERTEX_EPSILON = 0.001;
+
+const cloneVertices = (vertices) => vertices.map((vertex) => ({
+  ...vertex,
+  connectedLines: [...(vertex.connectedLines || [])],
+}));
+
+const findVertexById = (vertices, id) => vertices.find((vertex) => vertex.id === id);
+
+const findVertexByPosition = (vertices, x, y) => vertices.find(
+  (vertex) => Math.abs(vertex.x - x) <= VERTEX_EPSILON && Math.abs(vertex.y - y) <= VERTEX_EPSILON
+);
+
+const upsertVertex = (vertices, x, y) => {
+  const existing = findVertexByPosition(vertices, x, y);
+  if (existing) return existing;
+
+  const vertex = {
+    id: nanoid(),
+    x,
+    y,
+    connectedLines: [],
+  };
+  vertices.push(vertex);
+  return vertex;
+};
+
+const connectLineToVertex = (vertex, lineId) => {
+  if (!vertex.connectedLines.includes(lineId)) {
+    vertex.connectedLines.push(lineId);
+  }
+};
+
+const disconnectLineFromVertex = (vertex, lineId) => {
+  vertex.connectedLines = vertex.connectedLines.filter((connectedId) => connectedId !== lineId);
+};
+
+const hydrateWallFromVertices = (wall, vertices) => {
+  if (!wall.startVertexId || !wall.endVertexId) {
+    return buildLineRecord(wall);
+  }
+
+  const startVertex = findVertexById(vertices, wall.startVertexId);
+  const endVertex = findVertexById(vertices, wall.endVertexId);
+
+  if (!startVertex || !endVertex) {
+    return buildLineRecord(wall);
+  }
+
+  return buildLineRecord({
+    ...wall,
+    x1: startVertex.x,
+    y1: startVertex.y,
+    x2: endVertex.x,
+    y2: endVertex.y,
+  });
+};
+
+const cleanupOrphanVertices = (vertices) => vertices.filter((vertex) => vertex.connectedLines.length > 0);
 
 const getBoundingBox = (points) => {
   const xs = points.map((p) => p.x);
@@ -26,6 +85,7 @@ const getBoundingBox = (points) => {
 };
 
 const useFloorPlanStore = create((set, get) => ({
+  vertices: [],
   walls: [],
   rooms: [],
   doors: [],
@@ -69,6 +129,7 @@ const useFloorPlanStore = create((set, get) => ({
   _pushHistory: () => {
     const state = get();
     const snapshot = {
+      vertices: JSON.parse(JSON.stringify(state.vertices)),
       walls: JSON.parse(JSON.stringify(state.walls)),
       rooms: JSON.parse(JSON.stringify(state.rooms)),
       doors: JSON.parse(JSON.stringify(state.doors)),
@@ -205,6 +266,7 @@ const useFloorPlanStore = create((set, get) => ({
 
       if (newBoundaries.length > 0 || (isClosedLoop && areaBounds)) {
         set((state) => ({
+          vertices: state.vertices,
           walls: isClosedLoop ? state.walls : [...state.walls, ...newBoundaries],
           filledAreas: isClosedLoop && areaBounds
             ? [
@@ -315,11 +377,21 @@ const useFloorPlanStore = create((set, get) => ({
         : currentWallPoints;
 
       const newWalls = [];
+      const nextVertices = cloneVertices(get().vertices);
+
       for (let i = 0; i < points.length - 1; i += 1) {
         const p1 = points[i];
         const p2 = points[i + 1];
-        newWalls.push(buildLineRecord({
-          id: nanoid(),
+        const lineId = nanoid();
+        const startVertex = upsertVertex(nextVertices, p1.x, p1.y);
+        const endVertex = upsertVertex(nextVertices, p2.x, p2.y);
+        connectLineToVertex(startVertex, lineId);
+        connectLineToVertex(endVertex, lineId);
+
+        newWalls.push(hydrateWallFromVertices({
+          id: lineId,
+          startVertexId: startVertex.id,
+          endVertexId: endVertex.id,
           x1: p1.x,
           y1: p1.y,
           x2: p2.x,
@@ -328,7 +400,7 @@ const useFloorPlanStore = create((set, get) => ({
           height: WALL_HEIGHT,
           color: '#374151',
           type: 'area-line',
-        }));
+        }, nextVertices));
       }
 
       const newAreaId = isClosedLoop ? nanoid() : null;
@@ -343,6 +415,7 @@ const useFloorPlanStore = create((set, get) => ({
         : null;
 
       set((state) => ({
+        vertices: nextVertices,
         walls: [...state.walls, ...newWalls],
         filledAreas: area ? [...state.filledAreas, area] : state.filledAreas,
         isDrawingWall: false,
@@ -366,6 +439,29 @@ const useFloorPlanStore = create((set, get) => ({
       currentWallPoints: [],
       previewWallPoints: [],
       activeTool: 'wall',
+    });
+  },
+
+  stepBackWallDrawing: () => {
+    set((state) => {
+      if (!state.isDrawingWall || state.currentWallPoints.length === 0) {
+        return {};
+      }
+
+      if (state.currentWallPoints.length === 1) {
+        return {
+          isDrawingWall: false,
+          currentWallPoints: [],
+          previewWallPoints: [],
+          activeTool: 'wall',
+        };
+      }
+
+      const nextPoints = state.currentWallPoints.slice(0, -1);
+      return {
+        currentWallPoints: nextPoints,
+        previewWallPoints: [...nextPoints],
+      };
     });
   },
 
@@ -394,6 +490,8 @@ const useFloorPlanStore = create((set, get) => ({
     const snap = get().snap;
     const wall = {
       id,
+      startVertexId: null,
+      endVertexId: null,
       x1: snap(x1),
       y1: snap(y1),
       x2: snap(x2),
@@ -403,7 +501,24 @@ const useFloorPlanStore = create((set, get) => ({
       color: '#374151',
       type: 'area-line',
     };
-    set((state) => ({ walls: [...state.walls, buildLineRecord(wall)] }));
+    set((state) => {
+      const vertices = cloneVertices(state.vertices);
+      const startVertex = upsertVertex(vertices, wall.x1, wall.y1);
+      const endVertex = upsertVertex(vertices, wall.x2, wall.y2);
+      connectLineToVertex(startVertex, id);
+      connectLineToVertex(endVertex, id);
+      return {
+        vertices,
+        walls: [
+          ...state.walls,
+          hydrateWallFromVertices({
+            ...wall,
+            startVertexId: startVertex.id,
+            endVertexId: endVertex.id,
+          }, vertices),
+        ],
+      };
+    });
     get()._pushHistory();
     return id;
   },
@@ -562,7 +677,30 @@ const useFloorPlanStore = create((set, get) => ({
 
   updateWall: (id, updates, pushHistory = true) => {
     set((state) => ({
-      walls: state.walls.map((w) => (w.id === id ? buildLineRecord({ ...w, ...updates }) : w)),
+      const vertices = cloneVertices(state.vertices);
+      let walls = state.walls.map((wall) => (wall.id === id ? { ...wall, ...updates } : wall));
+      const targetWall = walls.find((wall) => wall.id === id);
+
+      if (targetWall?.startVertexId || targetWall?.endVertexId) {
+        const startVertex = targetWall?.startVertexId ? findVertexById(vertices, targetWall.startVertexId) : null;
+        const endVertex = targetWall?.endVertexId ? findVertexById(vertices, targetWall.endVertexId) : null;
+
+        if (startVertex) {
+          if ('x1' in updates) startVertex.x = updates.x1;
+          if ('y1' in updates) startVertex.y = updates.y1;
+        }
+
+        if (endVertex) {
+          if ('x2' in updates) endVertex.x = updates.x2;
+          if ('y2' in updates) endVertex.y = updates.y2;
+        }
+
+        walls = walls.map((wall) => hydrateWallFromVertices(wall, vertices));
+      } else {
+        walls = walls.map((wall) => buildLineRecord(wall));
+      }
+
+      return { vertices, walls };
     }));
     if (pushHistory) get()._pushHistory();
   },
@@ -635,7 +773,22 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   deleteItem: (id) => {
-    set((state) => ({
+    set((state) => {
+      const vertices = cloneVertices(state.vertices);
+      const deletedWall = state.walls.find((wall) => wall.id === id);
+
+      if (deletedWall?.startVertexId) {
+        const startVertex = findVertexById(vertices, deletedWall.startVertexId);
+        if (startVertex) disconnectLineFromVertex(startVertex, id);
+      }
+
+      if (deletedWall?.endVertexId) {
+        const endVertex = findVertexById(vertices, deletedWall.endVertexId);
+        if (endVertex) disconnectLineFromVertex(endVertex, id);
+      }
+
+      return {
+      vertices: cleanupOrphanVertices(vertices),
       walls: state.walls.filter((w) => w.id !== id),
       rooms: state.rooms.filter((r) => r.id !== id),
       doors: state.doors.filter((d) => d.id !== id),
@@ -646,7 +799,8 @@ const useFloorPlanStore = create((set, get) => ({
       landBoundary: state.landBoundary?.id === id ? null : state.landBoundary,
       selectedId: state.selectedId === id ? null : state.selectedId,
       selectedType: state.selectedId === id ? null : state.selectedType,
-    }));
+    };
+    });
     get()._pushHistory();
   },
 
@@ -712,6 +866,7 @@ const useFloorPlanStore = create((set, get) => ({
 
   clearAll: () => {
     set({
+      vertices: [],
       walls: [],
       rooms: [],
       doors: [],
@@ -739,8 +894,8 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   exportJSON: () => {
-    const { walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas } = get();
-    return JSON.stringify({ walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas }, null, 2);
+    const { vertices, walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas } = get();
+    return JSON.stringify({ vertices, walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas }, null, 2);
   },
 }));
 

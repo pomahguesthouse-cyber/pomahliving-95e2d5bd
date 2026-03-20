@@ -1,4 +1,6 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
+import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
+import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 import LineDrawingOverlay from './LineDrawingOverlay';
 
 const AreaLayer = memo(({ 
@@ -6,13 +8,17 @@ const AreaLayer = memo(({
   areas = [],
   selectedId, 
   hoveredWallId,
+  showDimensions,
   onWallClick,
+  onDimensionEdit,
   wallDrawingPoints,
   wallPreviewEnd,
   isDrawingWall,
   snapIndicator,
   angleLabel,
+  previewLengthLabel,
 }) => {
+  const [editingWallId, setEditingWallId] = useState(null);
   const areaEdgeSet = useMemo(() => {
     const toKey = (x1, y1, x2, y2) => {
       const a = `${x1},${y1}`;
@@ -48,6 +54,11 @@ const AreaLayer = memo(({
     const isSelected = selectedId === wall.id;
     const isHovered = hoveredWallId === wall.id;
     const strokeColor = isSelected ? '#2563eb' : isHovered ? '#ef4444' : wall.color;
+    const isEditing = editingWallId === wall.id;
+    const mx = (wall.x1 + wall.x2) / 2;
+    const my = (wall.y1 + wall.y2) / 2;
+    const wallLengthMeters = ((wall.length || Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1)) / GRID_SIZE) * METERS_PER_GRID;
+    const isHorizontal = Math.abs(wall.y2 - wall.y1) < Math.abs(wall.x2 - wall.x1);
 
     return (
       <g key={wall.id}>
@@ -79,6 +90,46 @@ const AreaLayer = memo(({
             <circle data-id={wall.id} data-type="wall" data-wall-handle="start" cx={wall.x1} cy={wall.y1} r={5} fill="#2563eb" stroke="white" strokeWidth={1.5} className="cursor-move" />
             <circle data-id={wall.id} data-type="wall" data-wall-handle="end" cx={wall.x2} cy={wall.y2} r={5} fill="#2563eb" stroke="white" strokeWidth={1.5} className="cursor-move" />
           </>
+        )}
+        {showDimensions && !isEditing && (
+          <g onClick={(event) => { event.stopPropagation(); setEditingWallId(wall.id); }}>
+            <rect
+              x={mx - 20}
+              y={my - 10}
+              width={40}
+              height={14}
+              rx={4}
+              fill="white"
+              stroke="#e2e8f0"
+              strokeWidth={1}
+              opacity={0.95}
+              className="cursor-text"
+            />
+            <text
+              x={mx}
+              y={my + 1}
+              textAnchor="middle"
+              fontSize={8}
+              fontFamily="monospace"
+              fill="#334155"
+              className="pointer-events-none"
+            >
+              {wallLengthMeters.toFixed(2)}m
+            </text>
+          </g>
+        )}
+        {isEditing && (
+          <InlineDimensionEditor
+            value={wallLengthMeters.toFixed(2)}
+            x={mx}
+            y={my}
+            isHorizontal={isHorizontal}
+            onSubmit={(value) => {
+              onDimensionEdit?.(wall.id, value);
+              setEditingWallId(null);
+            }}
+            onCancel={() => setEditingWallId(null)}
+          />
         )}
       </g>
     );
@@ -119,6 +170,7 @@ const AreaLayer = memo(({
         isDrawing={isDrawingWall}
         snapIndicator={snapIndicator}
         angleLabel={angleLabel}
+        lengthLabel={previewLengthLabel}
       />
     </g>
   );

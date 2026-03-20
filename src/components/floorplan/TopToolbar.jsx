@@ -64,6 +64,7 @@ const TopToolbar = () => {
     if (data) {
       const parsed = JSON.parse(data);
       const loadedState = {
+        vertices: parsed.vertices || [],
         walls: parsed.walls || [],
         rooms: parsed.rooms || [],
         doors: parsed.doors || [],

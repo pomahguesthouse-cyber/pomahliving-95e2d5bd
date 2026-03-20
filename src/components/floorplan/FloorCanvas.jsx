@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
-import { getLineAngleDeg, quantizeAnglePoint } from '@/features/floorplan/lineGeometry';
+import useFloorPlanStore, { METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
+import { getLineAngleDeg } from '@/features/floorplan/lineGeometry';
 import { getSnappedPoint } from '@/features/floorplan/snapEngine';
+import { applyAngleConstraint, stabilizePoint } from '@/features/floorplan/constraintEngine';
 import FloatingToolbar from './ui/FloatingToolbar';
 import GridLayer from './canvas/GridLayer';
 import FilledAreaLayer from './canvas/FilledAreaLayer';
@@ -27,6 +28,11 @@ const FloorCanvas = () => {
   const [hoveredWallId, setHoveredWallId] = useState(null);
   const [snapIndicator, setSnapIndicator] = useState(null);
   const [angleLabel, setAngleLabel] = useState(null);
+  const [previewLengthLabel, setPreviewLengthLabel] = useState(null);
+  const pointerFrameRef = useRef(null);
+  const pendingPointerRef = useRef(null);
+  const stickySnapRef = useRef(null);
+  const previewPointRef = useRef(null);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas,
@@ -36,9 +42,9 @@ const FloorCanvas = () => {
     setGridVisible, setSnapEnabled,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
-    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall, updateWallLength,
     isDrawingWall, currentWallPoints, previewWallPoints,
-    startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
+    startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing, stepBackWallDrawing,
   } = useFloorPlanStore();
 
   const snapToGrid = useCallback((value) => {
@@ -53,17 +59,15 @@ const FloorCanvas = () => {
       lockAngle = false,
     } = options;
 
-    let nextPoint = { ...rawPoint };
-    let lockedAngle = null;
-
-    if (lockAngle && basePoint) {
-      const locked = quantizeAnglePoint(basePoint, rawPoint, 45);
-      nextPoint = { x: locked.x, y: locked.y };
-      lockedAngle = locked.angleDeg;
-    }
+    const constrained = applyAngleConstraint({
+      basePoint,
+      rawPoint,
+      shiftLock: lockAngle,
+      autoOrthoThreshold: gridSize * 0.35,
+    });
 
     const snapped = getSnappedPoint({
-      point: nextPoint,
+      point: constrained.point,
       gridSize,
       snapEnabled,
       walls,
@@ -71,16 +75,23 @@ const FloorCanvas = () => {
       currentPoints,
       zoom,
       snapStrength,
+      stickyTarget: stickySnapRef.current,
     });
 
-    if (!lockedAngle && basePoint) {
-      lockedAngle = getLineAngleDeg({ x1: basePoint.x, y1: basePoint.y, x2: snapped.point.x, y2: snapped.point.y });
-    }
+    stickySnapRef.current = snapped.activeTarget;
+
+    const stablePoint = stabilizePoint(previewPointRef.current, snapped.point);
+    previewPointRef.current = stablePoint;
+
+    const computedAngle = basePoint
+      ? getLineAngleDeg({ x1: basePoint.x, y1: basePoint.y, x2: stablePoint.x, y2: stablePoint.y })
+      : constrained.angleDeg;
 
     return {
-      point: snapped.point,
+      point: stablePoint,
       indicator: snapped.indicator,
-      angleDeg: lockedAngle,
+      angleDeg: computedAngle,
+      constraintMode: constrained.mode,
     };
   }, [filledAreas, gridSize, snapEnabled, snapStrength, walls, zoom]);
 
@@ -110,6 +121,9 @@ const FloorCanvas = () => {
     setEditingRoomId(null);
     setSnapIndicator(null);
     setAngleLabel(null);
+    setPreviewLengthLabel(null);
+    stickySnapRef.current = null;
+    previewPointRef.current = null;
     if (isDrawingWall) {
       cancelWallDrawing();
     } else {
@@ -117,6 +131,82 @@ const FloorCanvas = () => {
       setActiveTool('select');
     }
   }, [setSelected, setActiveTool, isDrawingWall, cancelWallDrawing]);
+
+  const flushPointerFrame = useCallback(() => {
+    pointerFrameRef.current = null;
+    const payload = pendingPointerRef.current;
+    if (!payload) return;
+
+    const { point, shiftKey } = payload;
+
+    if (wallHandleDrag) {
+      const wall = walls.find((item) => item.id === wallHandleDrag.wallId);
+      if (!wall) return;
+
+      const assisted = getAssistedPoint(point, {
+        basePoint: wallHandleDrag.handle === 'start' ? { x: wall.x2, y: wall.y2 } : { x: wall.x1, y: wall.y1 },
+        currentPoints: [],
+        lockAngle: shiftKey,
+      });
+
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      setPreviewLengthLabel(null);
+
+      updateWall(
+        wall.id,
+        wallHandleDrag.handle === 'start'
+          ? { x1: assisted.point.x, y1: assisted.point.y }
+          : { x2: assisted.point.x, y2: assisted.point.y },
+        false
+      );
+      return;
+    }
+
+    if (wallPointDragIndex !== null) {
+      const previousPoint = currentWallPoints[wallPointDragIndex - 1] || null;
+      const assisted = getAssistedPoint(point, {
+        basePoint: previousPoint,
+        currentPoints: currentWallPoints,
+        lockAngle: shiftKey,
+      });
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      setPreviewLengthLabel(null);
+      updateWallPoint(wallPointDragIndex, assisted.point.x, assisted.point.y);
+      return;
+    }
+
+    if (activeTool === 'wall' && isDrawingWall) {
+      const basePoint = currentWallPoints.length > 0 ? currentWallPoints[currentWallPoints.length - 1] : null;
+      const assisted = getAssistedPoint(point, {
+        basePoint,
+        currentPoints: currentWallPoints,
+        lockAngle: shiftKey,
+      });
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      if (basePoint) {
+        const lengthMeters = Math.hypot(assisted.point.x - basePoint.x, assisted.point.y - basePoint.y) / gridSize * METERS_PER_GRID;
+        setPreviewLengthLabel(`${lengthMeters.toFixed(2)}m`);
+      } else {
+        setPreviewLengthLabel(null);
+      }
+      updateWallPreview(assisted.point.x, assisted.point.y);
+      return;
+    }
+
+    stickySnapRef.current = null;
+    previewPointRef.current = null;
+    setSnapIndicator(null);
+    setAngleLabel(null);
+    setPreviewLengthLabel(null);
+  }, [activeTool, currentWallPoints, getAssistedPoint, isDrawingWall, updateWall, updateWallPoint, updateWallPreview, wallHandleDrag, wallPointDragIndex, walls]);
+
+  const schedulePointerFrame = useCallback(() => {
+    if (pointerFrameRef.current !== null) return;
+    pointerFrameRef.current = window.requestAnimationFrame(flushPointerFrame);
+  }, [flushPointerFrame]);
 
   const handleMouseDown = (e) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -140,7 +230,8 @@ const FloorCanvas = () => {
       const isDoubleClick = e.detail === 2;
 
       setSnapIndicator(assisted.indicator);
-      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      setAngleLabel(assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      setPreviewLengthLabel(null);
 
       if (isDrawingWall) {
         const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
@@ -163,6 +254,7 @@ const FloorCanvas = () => {
 
           if (distToFirst <= closeThreshold) {
             const newAreaId = finishWallDrawing({ forceClose: true });
+            setPreviewLengthLabel(null);
             if (newAreaId) setSelected(newAreaId, 'area');
             return;
           }
@@ -251,58 +343,16 @@ const FloorCanvas = () => {
       return;
     }
 
-    if (wallHandleDrag) {
-      const wall = walls.find((item) => item.id === wallHandleDrag.wallId);
-      if (!wall) return;
-
-      const assisted = getAssistedPoint(point, {
-        basePoint: wallHandleDrag.handle === 'start' ? { x: wall.x2, y: wall.y2 } : { x: wall.x1, y: wall.y1 },
-        currentPoints: [],
-        lockAngle: e.shiftKey,
-      });
-
-      setSnapIndicator(assisted.indicator);
-      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
-
-      updateWall(
-        wall.id,
-        wallHandleDrag.handle === 'start'
-          ? { x1: assisted.point.x, y1: assisted.point.y }
-          : { x2: assisted.point.x, y2: assisted.point.y },
-        false
-      );
-      return;
-    }
-
-    if (wallPointDragIndex !== null) {
-      const previousPoint = currentWallPoints[wallPointDragIndex - 1] || null;
-      const assisted = getAssistedPoint(point, {
-        basePoint: previousPoint,
-        currentPoints: currentWallPoints,
-        lockAngle: e.shiftKey,
-      });
-      setSnapIndicator(assisted.indicator);
-      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
-      updateWallPoint(wallPointDragIndex, assisted.point.x, assisted.point.y);
-      return;
-    }
-
-    // Update wall preview
-    if (activeTool === 'wall' && isDrawingWall) {
-      const basePoint = currentWallPoints.length > 0 ? currentWallPoints[currentWallPoints.length - 1] : null;
-      const assisted = getAssistedPoint(point, {
-        basePoint,
-        currentPoints: currentWallPoints,
-        lockAngle: e.shiftKey,
-      });
-      setSnapIndicator(assisted.indicator);
-      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
-      updateWallPreview(assisted.point.x, assisted.point.y);
+    if (wallHandleDrag || wallPointDragIndex !== null || (activeTool === 'wall' && isDrawingWall)) {
+      pendingPointerRef.current = { point, shiftKey: e.shiftKey };
+      schedulePointerFrame();
       return;
     }
 
     setSnapIndicator(null);
     setAngleLabel(null);
+    stickySnapRef.current = null;
+    previewPointRef.current = null;
 
     if (resizingId && resizeHandle && resizeStart) {
       const snappedX = snapToGrid(point.x);
@@ -471,6 +521,7 @@ const FloorCanvas = () => {
       const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
       setSnapIndicator(null);
       setAngleLabel(null);
+      setPreviewLengthLabel(null);
       if (newAreaId) setSelected(newAreaId, 'area');
     } catch (error) {
       console.error('Error finishing wall drawing (double click):', error);
@@ -488,6 +539,7 @@ const FloorCanvas = () => {
     const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
     setSnapIndicator(null);
     setAngleLabel(null);
+    setPreviewLengthLabel(null);
     if (newAreaId) setSelected(newAreaId, 'area');
   };
 
@@ -516,7 +568,16 @@ const FloorCanvas = () => {
       
       if (e.key === 'Escape') {
         e.preventDefault();
-        cancelCurrentAction();
+        if (isDrawingWall) {
+          stepBackWallDrawing();
+          stickySnapRef.current = null;
+          previewPointRef.current = null;
+          setSnapIndicator(null);
+          setAngleLabel(null);
+          setPreviewLengthLabel(null);
+        } else {
+          cancelCurrentAction();
+        }
         return;
       }
       
@@ -527,6 +588,7 @@ const FloorCanvas = () => {
           const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
           setSnapIndicator(null);
           setAngleLabel(null);
+          setPreviewLengthLabel(null);
           if (newAreaId) setSelected(newAreaId, 'area');
           return;
         }
@@ -550,7 +612,15 @@ const FloorCanvas = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints, setGridVisible, gridVisible, setSnapEnabled, snapEnabled]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints, setGridVisible, gridVisible, setSnapEnabled, snapEnabled, stepBackWallDrawing]);
+
+  useEffect(() => {
+    return () => {
+      if (pointerFrameRef.current !== null) {
+        window.cancelAnimationFrame(pointerFrameRef.current);
+      }
+    };
+  }, []);
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';
@@ -678,6 +748,7 @@ const FloorCanvas = () => {
           setHoveredWallId(null);
           setSnapIndicator(null);
           setAngleLabel(null);
+          setPreviewLengthLabel(null);
           handleMouseUp(event);
         }}
         onWheel={handleWheel}
@@ -743,12 +814,15 @@ const FloorCanvas = () => {
             areas={filledAreas}
             selectedId={selectedId}
             hoveredWallId={hoveredWallId}
+            showDimensions={showDimensions}
             onWallClick={(id) => setSelected(id, 'wall')}
+            onDimensionEdit={(id, value) => updateWallLength(id, value)}
             wallDrawingPoints={currentWallPoints}
             wallPreviewEnd={previewWallPoints.length > 0 ? previewWallPoints[previewWallPoints.length - 1] : null}
             isDrawingWall={isDrawingWall}
             snapIndicator={snapIndicator}
             angleLabel={angleLabel}
+            previewLengthLabel={previewLengthLabel}
           />
 
           <OpeningLayer
