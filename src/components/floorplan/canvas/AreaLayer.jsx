@@ -4,6 +4,7 @@ import InlineDimensionEditor from '../ui/InlineDimensionEditor';
 
 const AreaLayer = memo(({ 
   walls, 
+  areas = [],
   selectedId, 
   showDimensions, 
   onWallClick,
@@ -42,9 +43,8 @@ const AreaLayer = memo(({
           x2={wall.x2}
           y2={wall.y2}
           stroke={isSelected ? '#2563eb' : wall.color}
-          strokeWidth={2}
-          strokeLinecap="butt"
-          strokeDasharray="4,2"
+          strokeWidth={isSelected ? 2.5 : 1.5}
+          strokeLinecap="round"
           className="pointer-events-none"
         />
         {isSelected && (
@@ -94,6 +94,30 @@ const AreaLayer = memo(({
         )}
       </g>
     );
+  };
+
+  const renderAreaContours = () => {
+    return areas.map((area) => {
+      const points = Array.isArray(area.points) ? area.points : [];
+      if (points.length < 3) return null;
+
+      const d = `M ${points.map((p) => `${p.x} ${p.y}`).join(' L ')} Z`;
+      const isAreaSelected = selectedId === area.id;
+
+      return (
+        <path
+          key={`contour-${area.id}`}
+          d={d}
+          fill="none"
+          stroke={isAreaSelected ? '#1d4ed8' : '#475569'}
+          strokeWidth={isAreaSelected ? 2.5 : 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.9}
+          className="pointer-events-none"
+        />
+      );
+    });
   };
 
   const renderWallPreview = () => {
@@ -147,6 +171,7 @@ const AreaLayer = memo(({
   return (
     <g>
       {walls.map(renderWall)}
+      {renderAreaContours()}
       {renderWallPreview()}
     </g>
   );

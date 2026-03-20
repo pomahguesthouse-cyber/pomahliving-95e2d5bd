@@ -293,8 +293,9 @@ const useFloorPlanStore = create((set, get) => ({
     set((state) => ({ previewWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }] }));
   },
 
-  finishWallDrawing: () => {
-    const { currentWallPoints, previewWallPoints, gridSize } = get();
+  finishWallDrawing: (options = {}) => {
+    const { forceClose = false } = options;
+    const { currentWallPoints, gridSize } = get();
     try {
       if (!currentWallPoints || currentWallPoints.length < 2) {
         set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
@@ -304,10 +305,18 @@ const useFloorPlanStore = create((set, get) => ({
       const firstPoint = currentWallPoints[0];
       const lastPoint = currentWallPoints[currentWallPoints.length - 1];
       const distToFirst = Math.hypot(lastPoint.x - firstPoint.x, lastPoint.y - firstPoint.y);
-      const isClosedLoop = currentWallPoints.length >= 3 && distToFirst <= gridSize;
+      const isClosedLoop = currentWallPoints.length >= 3 && (forceClose || distToFirst <= gridSize);
+
+      const alreadyClosed =
+        currentWallPoints.length >= 2 &&
+        currentWallPoints[0].x === currentWallPoints[currentWallPoints.length - 1].x &&
+        currentWallPoints[0].y === currentWallPoints[currentWallPoints.length - 1].y;
 
       const points = isClosedLoop
-        ? [...currentWallPoints.slice(0, -1), { x: firstPoint.x, y: firstPoint.y }]
+        ? [
+            ...(alreadyClosed ? currentWallPoints.slice(0, -1) : currentWallPoints),
+            { x: firstPoint.x, y: firstPoint.y },
+          ]
         : currentWallPoints;
 
       const newWalls = [];

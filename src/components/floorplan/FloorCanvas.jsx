@@ -105,8 +105,7 @@ const FloorCanvas = () => {
           const distToFirst = Math.hypot(snappedX - first.x, snappedY - first.y);
 
           if (distToFirst <= closeThreshold) {
-            addWallPoint(first.x, first.y);
-            const newAreaId = finishWallDrawing();
+            const newAreaId = finishWallDrawing({ forceClose: true });
             if (newAreaId) setSelected(newAreaId, 'area');
             return;
           }
@@ -394,7 +393,8 @@ const FloorCanvas = () => {
       }
 
       try {
-        const newAreaId = finishWallDrawing();
+        const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
+        const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
         if (newAreaId) setSelected(newAreaId, 'area');
       } catch (error) {
         console.error('Error finishing wall drawing (double click):', error);
@@ -435,7 +435,8 @@ const FloorCanvas = () => {
       if (e.key === 'Enter') {
         if (isDrawingWall) {
           e.preventDefault();
-          const newAreaId = finishWallDrawing();
+          const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
+          const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
           if (newAreaId) setSelected(newAreaId, 'area');
           return;
         }
@@ -455,7 +456,7 @@ const FloorCanvas = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints]);
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';
@@ -621,6 +622,7 @@ const FloorCanvas = () => {
 
           <AreaLayer
             walls={walls}
+            areas={filledAreas}
             selectedId={selectedId}
             showDimensions={showDimensions}
             onWallClick={(id) => setSelected(id, 'wall')}
