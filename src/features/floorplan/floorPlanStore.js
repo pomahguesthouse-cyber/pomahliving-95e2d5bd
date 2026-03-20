@@ -128,10 +128,12 @@ const useFloorPlanStore = create((set, get) => ({
   currentBoundaryPoints: [],
   previewBoundaryPoints: [],
 
-  // Freehand wall drawing state
+  // SketchUp-style continuous line drawing state
   isDrawingWall: false,
   currentWallPoints: [],
   previewWallPoints: [],
+  wallDrawingMode: 'waiting', // 'waiting' | 'drawing'
+  lastSnapTarget: null, // sticky snap memory
 
   _pushHistory: () => {
     const state = get();
@@ -327,6 +329,7 @@ const useFloorPlanStore = create((set, get) => ({
   startWallDrawing: (x, y) => {
     set({
       isDrawingWall: true,
+      wallDrawingMode: 'drawing',
       currentWallPoints: [{ x, y }],
       previewWallPoints: [{ x, y }],
       selectedId: null,
@@ -451,8 +454,10 @@ const useFloorPlanStore = create((set, get) => ({
   cancelWallDrawing: () => {
     set({
       isDrawingWall: false,
+      wallDrawingMode: 'waiting',
       currentWallPoints: [],
       previewWallPoints: [],
+      lastSnapTarget: null,
       activeTool: 'wall',
     });
   },

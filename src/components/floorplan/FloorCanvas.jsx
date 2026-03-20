@@ -43,7 +43,7 @@ const FloorCanvas = () => {
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall, updateWallLength,
-    isDrawingWall, currentWallPoints, previewWallPoints,
+    isDrawingWall, currentWallPoints, previewWallPoints, wallDrawingMode,
     startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing, stepBackWallDrawing,
   } = useFloorPlanStore();
 
@@ -218,7 +218,7 @@ const FloorCanvas = () => {
 
     const point = getCanvasPoint(e);
 
-    // Freehand wall drawing
+    // SketchUp-style continuous line drawing (click-based, not drag-based)
     if (activeTool === 'wall') {
       const basePoint = currentWallPoints.length > 0 ? currentWallPoints[currentWallPoints.length - 1] : null;
       const assisted = getAssistedPoint(point, {
@@ -233,39 +233,41 @@ const FloorCanvas = () => {
       setSnapIndicator(assisted.indicator);
       setAngleLabel(assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
       setPreviewLengthLabel(null);
+      stickySnapRef.current = assisted.activeTarget;
 
-      if (isDrawingWall) {
-        const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
-        if (pointIndexAttr != null) {
-          setWallPointDragIndex(Number(pointIndexAttr));
-          return;
-        }
-
-        // Prevent adding a point when the second click of a double-click occurs;
-        // the double-click handler will either insert a vertex or finish drawing.
-        if (isDoubleClick) {
-          return;
-        }
-
-        // Close only when user clicks near the first point; otherwise keep adding vertices.
-        if (currentWallPoints && currentWallPoints.length >= 3) {
-          const first = currentWallPoints[0];
-          const closeThreshold = Math.max(gridSize, 12);
-          const distToFirst = Math.hypot(snappedX - first.x, snappedY - first.y);
-
-          if (distToFirst <= closeThreshold) {
-            const newAreaId = finishWallDrawing({ forceClose: true });
-            setPreviewLengthLabel(null);
-            if (newAreaId) setSelected(newAreaId, 'area');
-            return;
-          }
-        }
-
-        addWallPoint(snappedX, snappedY);
+      if (!isDrawingWall) {
+        // First click: start drawing from this point
+        startWallDrawing(snappedX, snappedY);
         return;
       }
 
-      startWallDrawing(snappedX, snappedY);
+      // While drawing: check for special click targets
+      const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
+      if (pointIndexAttr != null) {
+        // User clicked on an existing point vertex to drag it
+        setWallPointDragIndex(Number(pointIndexAttr));
+        return;
+      }
+
+      // Check if user clicked near the first point to close the loop
+      if (currentWallPoints.length >= 3) {
+        const first = currentWallPoints[0];
+        const closeThreshold = Math.max(gridSize, snapStrength);
+        const distToFirst = Math.hypot(snappedX - first.x, snappedY - first.y);
+
+        if (distToFirst <= closeThreshold) {
+          const newAreaId = finishWallDrawing({ forceClose: true });
+          setSnapIndicator(null);
+          setAngleLabel(null);
+          setPreviewLengthLabel(null);
+          stickySnapRef.current = null;
+          if (newAreaId) setSelected(newAreaId, 'area');
+          return;
+        }
+      }
+
+      // Normal case: add new vertex and continue drawing
+      addWallPoint(snappedX, snappedY);
       return;
     }
 
@@ -583,13 +585,14 @@ const FloorCanvas = () => {
       }
       
       if (e.key === 'Enter') {
-        if (isDrawingWall) {
+        if (isDrawingWall && currentWallPoints.length >= 2) {
           e.preventDefault();
-          const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
+          const shouldForceClose = currentWallPoints.length >= 3;
           const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
           setSnapIndicator(null);
           setAngleLabel(null);
           setPreviewLengthLabel(null);
+          stickySnapRef.current = null;
           if (newAreaId) setSelected(newAreaId, 'area');
           return;
         }

@@ -15,10 +15,27 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
   const committedPointsStr = points.map((point) => `${point.x},${point.y}`).join(' ');
   const lastPoint = points[points.length - 1];
   const snapStyle = snapIndicator ? (snapStyles[snapIndicator.type] || snapStyles.grid) : null;
+  
+  // SketchUp-style label positions
   const angleX = previewEnd.x + 10;
   const angleY = previewEnd.y - 14;
   const lengthX = (lastPoint.x + previewEnd.x) / 2;
   const lengthY = (lastPoint.y + previewEnd.y) / 2 - 14;
+  
+  // Snap type label
+  const snapTypeLabelMap = {
+    endpoint: 'Endpoint',
+    startpoint: 'Start',
+    midpoint: 'Midpoint',
+    intersection: 'Intersection',
+    'line-segment': 'Segment',
+    grid: 'Grid',
+  };
+  const snapTypeLabel = snapIndicator ? snapTypeLabelMap[snapIndicator.type] || 'Snap' : null;
+  
+  // Calculate preview segment distance
+  const previewDist = Math.hypot(previewEnd.x - lastPoint.x, previewEnd.y - lastPoint.y);
+  const previewDistLabel = previewDist > 0 ? previewDist.toFixed(1) : null;
 
   return (
     <g>
@@ -86,6 +103,31 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
             stroke={snapStyle.stroke}
             strokeWidth={1.5}
           />
+          {snapTypeLabel && (
+            <g>
+              <rect
+                x={snapIndicator.x + 12}
+                y={snapIndicator.y - 12}
+                width={snapTypeLabel.length * 5 + 6}
+                height={16}
+                rx={3}
+                fill={snapStyle.fill}
+                stroke={snapStyle.stroke}
+                strokeWidth={1}
+                opacity={1}
+              />
+              <text
+                x={snapIndicator.x + 15}
+                y={snapIndicator.y - 2}
+                fontSize={9}
+                fontFamily="monospace"
+                fill={snapStyle.stroke}
+                fontWeight="bold"
+              >
+                {snapTypeLabel}
+              </text>
+            </g>
+          )}
         </g>
       )}
 
@@ -108,6 +150,31 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
             stroke={snapStyle.stroke}
             strokeWidth={1.5}
           />
+          {snapTypeLabel && (
+            <g>
+              <rect
+                x={snapIndicator.x + 12}
+                y={snapIndicator.y - 12}
+                width={snapTypeLabel.length * 5 + 6}
+                height={16}
+                rx={3}
+                fill={snapStyle.fill}
+                stroke={snapStyle.stroke}
+                strokeWidth={1}
+                opacity={1}
+              />
+              <text
+                x={snapIndicator.x + 15}
+                y={snapIndicator.y - 2}
+                fontSize={9}
+                fontFamily="monospace"
+                fill={snapStyle.stroke}
+                fontWeight="bold"
+              >
+                {snapTypeLabel}
+              </text>
+            </g>
+          )}
         </g>
       )}
 
