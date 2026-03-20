@@ -84,6 +84,19 @@ const getBoundingBox = (points) => {
   };
 };
 
+const getEdgeKey = (p1, p2) => {
+  const a = `${p1.x},${p1.y}`;
+  const b = `${p2.x},${p2.y}`;
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+};
+
+const getRectanglePoints = ({ x, y, width, height }) => ([
+  { x, y },
+  { x: x + width, y },
+  { x: x + width, y: y + height },
+  { x, y: y + height },
+]);
+
 const useFloorPlanStore = create((set, get) => ({
   vertices: [],
   walls: [],
@@ -733,34 +746,89 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   updateFilledArea: (id, updates, pushHistory = true) => {
-    set((state) => ({
-      filledAreas: state.filledAreas.map((a) => {
-        if (a.id !== id) return a;
-        const merged = { ...a, ...updates };
+    set((state) => {
+      const area = state.filledAreas.find((item) => item.id === id);
+      if (!area) return {};
 
-        // If the bounding box changes, regenerate the polygon points as a rectangle.
-        if (
-          'x' in updates ||
-          'y' in updates ||
-          'width' in updates ||
-          'height' in updates
-        ) {
-          const x = merged.x ?? a.x;
-          const y = merged.y ?? a.y;
-          const width = merged.width ?? a.width;
-          const height = merged.height ?? a.height;
+      let nextArea = { ...area, ...updates };
+      if ('x' in updates || 'y' in updates || 'width' in updates || 'height' in updates) {
+        const x = nextArea.x ?? area.x;
+        const y = nextArea.y ?? area.y;
+        const width = nextArea.width ?? area.width;
+        const height = nextArea.height ?? area.height;
+        nextArea.points = getRectanglePoints({ x, y, width, height });
+      }
 
-          merged.points = [
-            { x, y },
-            { x: x + width, y },
-            { x: x + width, y: y + height },
-            { x, y: y + height },
-          ];
-        }
+      const nextPoints = Array.isArray(nextArea.points) ? nextArea.points : area.points;
+      const nextBounds = nextPoints?.length >= 3 ? getBoundingBox(nextPoints) : {
+        x: nextArea.x ?? area.x,
+        y: nextArea.y ?? area.y,
+        width: nextArea.width ?? area.width,
+        height: nextArea.height ?? area.height,
+      };
 
-        return merged;
-      }),
-    }));
+      nextArea = {
+        ...nextArea,
+        points: nextPoints,
+        ...nextBounds,
+      };
+
+      let vertices = state.vertices;
+      let walls = state.walls;
+      const oldPoints = Array.isArray(area.points) ? area.points : [];
+
+      if (oldPoints.length >= 3 && nextPoints?.length === oldPoints.length) {
+        const nextVertices = cloneVertices(state.vertices);
+        const movedVertexIds = new Set();
+
+        oldPoints.forEach((oldPoint, index) => {
+          const vertex = findVertexByPosition(nextVertices, oldPoint.x, oldPoint.y);
+          const nextPoint = nextPoints[index];
+          if (!vertex || !nextPoint || movedVertexIds.has(vertex.id)) return;
+
+          vertex.x = nextPoint.x;
+          vertex.y = nextPoint.y;
+          movedVertexIds.add(vertex.id);
+        });
+
+        const boundaryEdgeKeys = new Set(
+          oldPoints.map((point, index) => getEdgeKey(point, oldPoints[(index + 1) % oldPoints.length]))
+        );
+
+        walls = state.walls.map((wall) => {
+          const wallEdgeKey = getEdgeKey(
+            { x: wall.x1, y: wall.y1 },
+            { x: wall.x2, y: wall.y2 }
+          );
+
+          if (!boundaryEdgeKeys.has(wallEdgeKey)) return wall;
+
+          if (wall.startVertexId || wall.endVertexId) {
+            return hydrateWallFromVertices(wall, nextVertices);
+          }
+
+          const startIndex = oldPoints.findIndex((point) => point.x === wall.x1 && point.y === wall.y1);
+          const endIndex = oldPoints.findIndex((point) => point.x === wall.x2 && point.y === wall.y2);
+          if (startIndex === -1 || endIndex === -1) return wall;
+
+          return buildLineRecord({
+            ...wall,
+            x1: nextPoints[startIndex].x,
+            y1: nextPoints[startIndex].y,
+            x2: nextPoints[endIndex].x,
+            y2: nextPoints[endIndex].y,
+          });
+        });
+
+        vertices = nextVertices;
+      }
+
+      return {
+        vertices,
+        walls,
+        filledAreas: state.filledAreas.map((item) => (item.id === id ? nextArea : item)),
+      };
+    });
     if (pushHistory) get()._pushHistory();
   },
 
@@ -866,12 +934,62 @@ const useFloorPlanStore = create((set, get) => ({
     } else if (type === 'area') {
       const area = state.filledAreas.find((a) => a.id === id);
       if (area) {
-        const movedPoints = area.points.map((p) => ({ x: snap(p.x + dx), y: snap(p.y + dy) }));
-        get().updateFilledArea(id, {
-          points: movedPoints,
-          x: snap(area.x + dx),
-          y: snap(area.y + dy),
-        }, false);
+        set((currentState) => {
+          const vertices = cloneVertices(currentState.vertices);
+          const areaPointKeys = new Set(
+            (Array.isArray(area.points) ? area.points : []).map((point) => `${point.x},${point.y}`)
+          );
+
+          const movedVertexIds = new Set();
+          vertices.forEach((vertex) => {
+            const key = `${vertex.x},${vertex.y}`;
+            if (!areaPointKeys.has(key) || movedVertexIds.has(vertex.id)) return;
+
+            vertex.x = snap(vertex.x + dx);
+            vertex.y = snap(vertex.y + dy);
+            movedVertexIds.add(vertex.id);
+          });
+
+          const walls = currentState.walls.map((wall) => {
+            const isBoundaryWall = area.points.some((point, index) => {
+              const nextPoint = area.points[(index + 1) % area.points.length];
+              const forwardMatch =
+                wall.x1 === point.x &&
+                wall.y1 === point.y &&
+                wall.x2 === nextPoint.x &&
+                wall.y2 === nextPoint.y;
+              const reverseMatch =
+                wall.x1 === nextPoint.x &&
+                wall.y1 === nextPoint.y &&
+                wall.x2 === point.x &&
+                wall.y2 === point.y;
+              return forwardMatch || reverseMatch;
+            });
+
+            if (!isBoundaryWall) return wall;
+            return hydrateWallFromVertices(wall, vertices);
+          });
+
+          const movedPoints = area.points.map((point) => ({
+            x: snap(point.x + dx),
+            y: snap(point.y + dy),
+          }));
+
+          return {
+            vertices,
+            walls,
+            filledAreas: currentState.filledAreas.map((filledArea) => (
+              filledArea.id !== id
+                ? filledArea
+                : {
+                    ...filledArea,
+                    points: movedPoints,
+                    x: snap((filledArea.x ?? 0) + dx),
+                    y: snap((filledArea.y ?? 0) + dy),
+                  }
+            )),
+          };
+        });
       }
     } else if (type === 'land-boundary') {
       const lb = state.landBoundary;
