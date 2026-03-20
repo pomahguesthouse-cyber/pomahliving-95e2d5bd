@@ -13,6 +13,8 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
   if (!isDrawing || points.length === 0 || !previewEnd) return null;
 
   const committedPointsStr = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const previewPolygonPoints = points.length >= 2 ? [...points, previewEnd] : [];
+  const previewPolygonStr = previewPolygonPoints.map((point) => `${point.x},${point.y}`).join(' ');
   const lastPoint = points[points.length - 1];
   const snapStyle = snapIndicator ? (snapStyles[snapIndicator.type] || snapStyles.grid) : null;
   
@@ -39,6 +41,15 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
 
   return (
     <g>
+      {previewPolygonPoints.length >= 3 && (
+        <polygon
+          points={previewPolygonStr}
+          fill="#dbeafe"
+          opacity={0.45}
+          className="pointer-events-none"
+        />
+      )}
+
       {points.length >= 2 && (
         <polyline
           points={committedPointsStr}

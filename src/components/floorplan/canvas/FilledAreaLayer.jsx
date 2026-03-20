@@ -74,10 +74,13 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
               data-id={area.id}
               data-type="area"
               points={pointsStr}
-              fill={isSelected ? '#eff6ff' : area.fill || '#f3f4f6'}
-              stroke={isSelected ? '#2563eb' : area.stroke || '#9ca3af'}
-              strokeWidth={isSelected ? 2 : 1}
-              strokeDasharray="4,2"
+              fill={isSelected ? '#dbeafe' : area.fill || '#f0f9ff'}
+              stroke={isSelected ? '#1d4ed8' : area.stroke || '#475569'}
+              strokeWidth={isSelected ? 2.5 : 2}
+              strokeDasharray="7,5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.9}
               className="cursor-move"
               onClick={() => onAreaClick?.(area.id)}
             />
