@@ -98,11 +98,18 @@ const FloorCanvas = () => {
           return;
         }
 
-        // Auto-close polygon with single click when there are at least 3 points
+        // Close only when user clicks near the first point; otherwise keep adding vertices.
         if (currentWallPoints && currentWallPoints.length >= 3) {
-          const newAreaId = finishWallDrawing();
-          if (newAreaId) setSelected(newAreaId, 'area');
-          return;
+          const first = currentWallPoints[0];
+          const closeThreshold = Math.max(gridSize, 12);
+          const distToFirst = Math.hypot(snappedX - first.x, snappedY - first.y);
+
+          if (distToFirst <= closeThreshold) {
+            addWallPoint(first.x, first.y);
+            const newAreaId = finishWallDrawing();
+            if (newAreaId) setSelected(newAreaId, 'area');
+            return;
+          }
         }
 
         addWallPoint(snappedX, snappedY);
