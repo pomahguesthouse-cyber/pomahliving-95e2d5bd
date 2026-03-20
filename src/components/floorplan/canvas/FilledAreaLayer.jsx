@@ -47,7 +47,7 @@ const getPolygonAreaMeters = (points) => {
   return area * scale * scale;
 };
 
-const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = false, showDimensions = false }) => {
+const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = false, showDimensions = false, editingAreaId, editingVertexIndex }) => {
   return (
     <g>
       {areas.map((area) => {
@@ -86,6 +86,24 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
             />
             {isSelected && (
               <ResizeHandles room={{ id: area.id, ...box, type: 'area' }} />
+            )}
+            {isSelected && (
+              <g className="pointer-events-auto">
+                {points.map((point, index) => (
+                  <circle
+                    key={`vertex-${index}`}
+                    data-vertex-index={index}
+                    data-area-id={area.id}
+                    cx={point.x}
+                    cy={point.y}
+                    r={4}
+                    fill={editingAreaId === area.id && editingVertexIndex === index ? '#ef4444' : '#2563eb'}
+                    stroke="white"
+                    strokeWidth={1.5}
+                    className="cursor-pointer hover:opacity-80 transition-all"
+                  />
+                ))}
+              </g>
             )}
             {(showText || showDimensions) && (
               <g className="pointer-events-none">

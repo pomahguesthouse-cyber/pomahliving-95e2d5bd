@@ -29,6 +29,8 @@ const FloorCanvas = () => {
   const [snapIndicator, setSnapIndicator] = useState(null);
   const [angleLabel, setAngleLabel] = useState(null);
   const [previewLengthLabel, setPreviewLengthLabel] = useState(null);
+  const [editingAreaId, setEditingAreaId] = useState(null);
+  const [editingVertexIndex, setEditingVertexIndex] = useState(null);
   const pointerFrameRef = useRef(null);
   const pendingPointerRef = useRef(null);
   const stickySnapRef = useRef(null);
@@ -42,7 +44,7 @@ const FloorCanvas = () => {
     setGridVisible, setSnapEnabled,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
-    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall, updateWallLength,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall, updateWallLength, updateFilledArea,
     isDrawingWall, currentWallPoints, previewWallPoints, wallDrawingMode,
     startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing, stepBackWallDrawing,
   } = useFloorPlanStore();
@@ -120,6 +122,8 @@ const FloorCanvas = () => {
     setWallPointDragIndex(null);
     setWallHandleDrag(null);
     setEditingRoomId(null);
+    setEditingAreaId(null);
+    setEditingVertexIndex(null);
     setSnapIndicator(null);
     setAngleLabel(null);
     setPreviewLengthLabel(null);
@@ -516,7 +520,17 @@ const FloorCanvas = () => {
     setDragStart(null);
   };
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e) => {
+    // Handle area vertex edit
+    if (selectedType === 'area' && activeTool === 'select') {
+      const vertexIndexAttr = e.target.getAttribute('data-vertex-index');
+      if (vertexIndexAttr != null) {
+        setEditingAreaId(selectedId);
+        setEditingVertexIndex(Number(vertexIndexAttr));
+        return;
+      }
+    }
+
     if (activeTool !== 'wall' || !isDrawingWall || wallPointDragIndex !== null) return;
 
     try {
@@ -628,7 +642,7 @@ const FloorCanvas = () => {
 
   const getCursor = () => {
     if (isPanning) return 'grabbing';
-    if (activeTool === 'select') return 'default';
+    if (activeTool === 'select') return 'crosshair';
     if (activeTool === 'wall') return 'none';
     return 'crosshair';
   };
@@ -753,6 +767,8 @@ const FloorCanvas = () => {
           setSnapIndicator(null);
           setAngleLabel(null);
           setPreviewLengthLabel(null);
+          setEditingAreaId(null);
+          setEditingVertexIndex(null);
           handleMouseUp(event);
         }}
         onWheel={handleWheel}
@@ -774,6 +790,8 @@ const FloorCanvas = () => {
             onAreaClick={(id) => setSelected(id, 'area')}
             showText={showText}
             showDimensions={showDimensions}
+            editingAreaId={editingAreaId}
+            editingVertexIndex={editingVertexIndex}
           />
 
           <SelectionLayer
