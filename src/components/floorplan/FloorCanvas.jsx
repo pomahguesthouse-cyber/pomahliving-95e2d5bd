@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import useFloorPlanStore, { GRID_SIZE } from '@/features/floorplan/floorPlanStore';
+import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 import FloatingToolbar from './ui/FloatingToolbar';
 import GridLayer from './canvas/GridLayer';
 import FilledAreaLayer from './canvas/FilledAreaLayer';
@@ -32,13 +32,32 @@ const FloorCanvas = () => {
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
     isDrawingWall, currentWallPoints, previewWallPoints,
-    startWallDrawing, addWallPoint, updateWallPoint, insertWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
+    startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
 
   const snapToGrid = useCallback((value) => {
     if (!snapEnabled) return value;
     return Math.round(value / gridSize) * gridSize;
   }, [snapEnabled, gridSize]);
+
+  const constrainWallPoint = useCallback((x, y, lockAxis = false) => {
+    const snappedX = snapToGrid(x);
+    const snappedY = snapToGrid(y);
+
+    if (!lockAxis || !currentWallPoints || currentWallPoints.length === 0) {
+      return { x: snappedX, y: snappedY };
+    }
+
+    const last = currentWallPoints[currentWallPoints.length - 1];
+    const dx = Math.abs(snappedX - last.x);
+    const dy = Math.abs(snappedY - last.y);
+
+    if (dx >= dy) {
+      return { x: snappedX, y: last.y };
+    }
+
+    return { x: last.x, y: snappedY };
+  }, [snapToGrid, currentWallPoints]);
 
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
@@ -82,8 +101,9 @@ const FloorCanvas = () => {
 
     // Freehand wall drawing
     if (activeTool === 'wall') {
-      const snappedX = snapToGrid(point.x);
-      const snappedY = snapToGrid(point.y);
+      const constrained = constrainWallPoint(point.x, point.y, e.shiftKey);
+      const snappedX = constrained.x;
+      const snappedY = constrained.y;
       const isDoubleClick = e.detail === 2;
 
       if (isDrawingWall) {
@@ -193,7 +213,8 @@ const FloorCanvas = () => {
 
     // Update wall preview
     if (activeTool === 'wall' && isDrawingWall) {
-      updateWallPreview(point.x, point.y);
+      const constrained = constrainWallPoint(point.x, point.y, e.shiftKey);
+      updateWallPreview(constrained.x, constrained.y);
       return;
     }
 
@@ -345,63 +366,28 @@ const FloorCanvas = () => {
     setDragStart(null);
   };
 
-  const handleDoubleClick = (e) => {
-    if (activeTool === 'wall' && isDrawingWall) {
-      // If we're currently dragging a point, do nothing (dragging is already active).
-      if (wallPointDragIndex !== null) return;
+  const handleDoubleClick = () => {
+    if (activeTool !== 'wall' || !isDrawingWall || wallPointDragIndex !== null) return;
 
-      const clickPoint = getCanvasPoint(e);
-
-      const pointRadius = 8;
-      const closestPointIndex = currentWallPoints.findIndex((p) => {
-        return Math.hypot(p.x - clickPoint.x, p.y - clickPoint.y) <= pointRadius;
-      });
-
-      if (closestPointIndex !== -1) {
-        // Start dragging an existing point.
-        setWallPointDragIndex(closestPointIndex);
-        return;
-      }
-
-      const findClosestSegment = (points, x, y) => {
-        let best = { index: -1, dist: Infinity, proj: { x, y } };
-        for (let i = 0; i < points.length - 1; i += 1) {
-          const a = points[i];
-          const b = points[i + 1];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const len2 = dx * dx + dy * dy;
-          if (len2 === 0) continue;
-          const t = ((x - a.x) * dx + (y - a.y) * dy) / len2;
-          const tClamped = Math.max(0, Math.min(1, t));
-          const projX = a.x + tClamped * dx;
-          const projY = a.y + tClamped * dy;
-          const dist = Math.hypot(projX - x, projY - y);
-          if (dist < best.dist) {
-            best = { index: i, dist, proj: { x: projX, y: projY } };
-          }
-        }
-        return best;
-      };
-
-      const { index, dist, proj } = findClosestSegment(currentWallPoints, clickPoint.x, clickPoint.y);
-      const insertThreshold = Math.min(GRID_SIZE, 12);
-      if (index !== -1 && dist <= insertThreshold) {
-        const snapX = snapToGrid(proj.x);
-        const snapY = snapToGrid(proj.y);
-        insertWallPoint(index + 1, snapX, snapY);
-        return;
-      }
-
-      try {
-        const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
-        const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
-        if (newAreaId) setSelected(newAreaId, 'area');
-      } catch (error) {
-        console.error('Error finishing wall drawing (double click):', error);
-        setActiveTool('select');
-      }
+    try {
+      const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
+      const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
+      if (newAreaId) setSelected(newAreaId, 'area');
+    } catch (error) {
+      console.error('Error finishing wall drawing (double click):', error);
+      setActiveTool('select');
     }
+  };
+
+  const handleContextMenu = (e) => {
+    if (activeTool !== 'wall') return;
+
+    e.preventDefault();
+    if (!isDrawingWall) return;
+
+    const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
+    const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
+    if (newAreaId) setSelected(newAreaId, 'area');
   };
 
   const handleWheel = (e) => {
@@ -570,6 +556,7 @@ const FloorCanvas = () => {
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
       >
         <GridLayer visible={gridVisible} />
 

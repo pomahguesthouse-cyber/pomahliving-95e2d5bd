@@ -123,22 +123,37 @@ const AreaLayer = memo(({
   const renderWallPreview = () => {
     const points = wallDrawingPoints ?? [];
     if (!isDrawingWall || points.length === 0 || !wallPreviewEnd) return null;
-
-    const allPoints = [...points, wallPreviewEnd];
-    const pointsStr = allPoints.map((p) => `${p.x},${p.y}`).join(' ');
+    const committedPointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
+    const lastPoint = points[points.length - 1];
 
     return (
       <g>
-        <polyline
-          points={pointsStr}
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="4,2"
-          opacity={0.8}
-        />
+        {points.length >= 2 && (
+          <polyline
+            points={committedPointsStr}
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="7,5"
+            opacity={0.95}
+          />
+        )}
+
+        {lastPoint && wallPreviewEnd && (
+          <line
+            x1={lastPoint.x}
+            y1={lastPoint.y}
+            x2={wallPreviewEnd.x}
+            y2={wallPreviewEnd.y}
+            stroke="#ef4444"
+            strokeWidth={2}
+            strokeLinecap="round"
+            opacity={0.95}
+          />
+        )}
+
         {points.map((p, i) => (
           <circle
             key={i}
@@ -146,8 +161,8 @@ const AreaLayer = memo(({
             cx={p.x}
             cy={p.y}
             r={4}
-            fill="white"
-            stroke="#2563eb"
+            fill="#60a5fa"
+            stroke="white"
             strokeWidth={1.5}
             className="cursor-move"
           />
@@ -157,8 +172,8 @@ const AreaLayer = memo(({
             cx={wallPreviewEnd.x}
             cy={wallPreviewEnd.y}
             r={4}
-            fill="white"
-            stroke="#2563eb"
+            fill="#93c5fd"
+            stroke="#ef4444"
             strokeWidth={1.5}
             className="cursor-move"
           />

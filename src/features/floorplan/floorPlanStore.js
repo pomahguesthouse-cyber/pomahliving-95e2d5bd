@@ -298,7 +298,7 @@ const useFloorPlanStore = create((set, get) => ({
     const { currentWallPoints, gridSize } = get();
     try {
       if (!currentWallPoints || currentWallPoints.length < 2) {
-        set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+        set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'wall' });
         return null;
       }
 
@@ -352,14 +352,14 @@ const useFloorPlanStore = create((set, get) => ({
         isDrawingWall: false,
         currentWallPoints: [],
         previewWallPoints: [],
-        activeTool: 'select',
+        activeTool: 'wall',
       }));
 
       get()._pushHistory();
       return newAreaId;
     } catch (error) {
       console.error('Error finishing wall drawing:', error);
-      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'select' });
+      set({ isDrawingWall: false, currentWallPoints: [], previewWallPoints: [], activeTool: 'wall' });
       return null;
     }
   },
@@ -369,7 +369,7 @@ const useFloorPlanStore = create((set, get) => ({
       isDrawingWall: false,
       currentWallPoints: [],
       previewWallPoints: [],
-      activeTool: 'select',
+      activeTool: 'wall',
     });
   },
 
