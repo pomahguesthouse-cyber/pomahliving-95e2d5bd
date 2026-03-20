@@ -58,7 +58,7 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
         const isSelected = selectedId === area.id;
 
         const areaMeters = getPolygonAreaMeters(points).toFixed(2);
-        const areaLabel = (area.label || '').trim() || `Polygon ${index + 1}`;
+        const areaLabel = (area.name || area.label || '').trim() || `area-${index + 1}`;
 
         const centroid = getPolygonCentroid(points);
 

@@ -226,7 +226,7 @@ const PropertiesPanel = memo(() => {
       <>
         <Section title="Area Info">
           <TextInput
-            value={item.name || 'Ruangan'}
+            value={item.name || item.label || ''}
             onChange={(v) => updateFilledArea(item.id, { name: v })}
           />
         </Section>

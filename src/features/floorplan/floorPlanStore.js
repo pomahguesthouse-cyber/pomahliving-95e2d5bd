@@ -110,6 +110,31 @@ const transformPointsToBounds = (points, nextBounds) => {
   }));
 };
 
+const getNextAreaName = (filledAreas = []) => {
+  const maxIndex = filledAreas.reduce((max, area) => {
+    const name = typeof area?.name === 'string' ? area.name.trim() : '';
+    const match = /^area-(\d+)$/i.exec(name);
+    if (!match) return max;
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0);
+
+  return `area-${maxIndex + 1}`;
+};
+
+const isDefaultAreaName = (name) => /^area-(\d+)$/i.test((name || '').trim());
+
+const normalizeDefaultAreaNames = (filledAreas = []) => {
+  let sequence = 1;
+  return filledAreas.map((area) => {
+    if (!isDefaultAreaName(area?.name)) return area;
+    return {
+      ...area,
+      name: `area-${sequence++}`,
+    };
+  });
+};
+
 const useFloorPlanStore = create((set, get) => ({
   vertices: [],
   walls: [],
@@ -316,6 +341,7 @@ const useFloorPlanStore = create((set, get) => ({
                 ...state.filledAreas,
                 {
                   id: newAreaId,
+                  name: getNextAreaName(state.filledAreas),
                   points: filledAreaPoints,
                   ...areaBounds,
                   // Use the same styling as rooms (light gray fill + gray stroke)
@@ -710,8 +736,10 @@ const useFloorPlanStore = create((set, get) => ({
   addFilledArea: (points, options = {}) => {
     const id = nanoid();
     const snap = get().snap;
+    const defaultName = getNextAreaName(get().filledAreas);
     const area = {
       id,
+      name: options.name || defaultName,
       points: points.map((p) => ({ x: snap(p.x), y: snap(p.y) })),
       fill: options.fill || 'rgba(59,130,246,0.12)',
       stroke: options.stroke || '#2563eb',
@@ -900,6 +928,10 @@ const useFloorPlanStore = create((set, get) => ({
         if (endVertex) disconnectLineFromVertex(endVertex, id);
       }
 
+      const nextFilledAreas = normalizeDefaultAreaNames(
+        state.filledAreas.filter((f) => f.id !== id)
+      );
+
       return {
       vertices: cleanupOrphanVertices(vertices),
       walls: state.walls.filter((w) => w.id !== id),
@@ -907,7 +939,7 @@ const useFloorPlanStore = create((set, get) => ({
       doors: state.doors.filter((d) => d.id !== id),
       windows: state.windows.filter((w) => w.id !== id),
       openings: state.openings.filter((o) => o.id !== id),
-      filledAreas: state.filledAreas.filter((f) => f.id !== id),
+      filledAreas: nextFilledAreas,
       outdoorElements: state.outdoorElements.filter((e) => e.id !== id),
       landBoundary: state.landBoundary?.id === id ? null : state.landBoundary,
       selectedId: state.selectedId === id ? null : state.selectedId,
