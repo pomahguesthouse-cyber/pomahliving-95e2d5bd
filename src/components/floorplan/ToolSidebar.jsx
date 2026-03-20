@@ -28,10 +28,21 @@ const ToolButton = ({ icon: Icon, label, active, onClick, disabled }) => (
 
 const Divider = () => <div className="w-10 h-px bg-gray-200 my-1" />;
 
+const SnapToggle = ({ label, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`w-14 h-6 text-[9px] font-semibold rounded-lg transition-colors ${active ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'}`}
+    title={`Snap ${label}`}
+  >
+    {label}
+  </button>
+);
+
 const ToolSidebar = () => {
   const {
     activeTool, setActiveTool, gridVisible, setGridVisible,
     snapEnabled, setSnapEnabled,
+    snapMask, toggleSnapMask,
     deleteItem, selectedId, uploadedImage, setUploadedImage, clearUploadedImage,
   } = useFloorPlanStore();
 
@@ -136,6 +147,32 @@ const ToolSidebar = () => {
         label="Snap"
         active={snapEnabled}
         onClick={() => setSnapEnabled(!snapEnabled)}
+      />
+
+      <SnapToggle
+        label="PT"
+        active={!!snapMask?.point}
+        onClick={() => toggleSnapMask('point')}
+      />
+      <SnapToggle
+        label="MID"
+        active={!!snapMask?.midpoint}
+        onClick={() => toggleSnapMask('midpoint')}
+      />
+      <SnapToggle
+        label="INT"
+        active={!!snapMask?.intersection}
+        onClick={() => toggleSnapMask('intersection')}
+      />
+      <SnapToggle
+        label="SEG"
+        active={!!snapMask?.segment}
+        onClick={() => toggleSnapMask('segment')}
+      />
+      <SnapToggle
+        label="GRID"
+        active={!!snapMask?.grid}
+        onClick={() => toggleSnapMask('grid')}
       />
 
       <ToolButton

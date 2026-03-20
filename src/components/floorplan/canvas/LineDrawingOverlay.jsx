@@ -4,6 +4,8 @@ const snapStyles = {
   endpoint: { stroke: '#2563eb', fill: '#dbeafe' },
   startpoint: { stroke: '#1d4ed8', fill: '#bfdbfe' },
   midpoint: { stroke: '#f59e0b', fill: '#fef3c7' },
+  intersection: { stroke: '#be123c', fill: '#ffe4e6' },
+  'line-segment': { stroke: '#0f766e', fill: '#ccfbf1' },
   grid: { stroke: '#94a3b8', fill: '#ffffff' },
 };
 
@@ -58,17 +60,55 @@ const LineDrawingOverlay = memo(({ points = [], previewEnd, isDrawing, snapIndic
         />
       ))}
 
-      {snapIndicator && snapStyle && (
-        <circle
-          cx={snapIndicator.x}
-          cy={snapIndicator.y}
-          r={6}
-          fill={snapStyle.fill}
-          stroke={snapStyle.stroke}
-          strokeWidth={1.5}
-          opacity={0.95}
-          className="pointer-events-none"
-        />
+      {snapIndicator && snapStyle && snapIndicator.type !== 'line-segment' && (
+        <g className="pointer-events-none" opacity={0.95}>
+          <line
+            x1={snapIndicator.x - 9}
+            y1={snapIndicator.y}
+            x2={snapIndicator.x + 9}
+            y2={snapIndicator.y}
+            stroke={snapStyle.stroke}
+            strokeWidth={1}
+          />
+          <line
+            x1={snapIndicator.x}
+            y1={snapIndicator.y - 9}
+            x2={snapIndicator.x}
+            y2={snapIndicator.y + 9}
+            stroke={snapStyle.stroke}
+            strokeWidth={1}
+          />
+          <circle
+            cx={snapIndicator.x}
+            cy={snapIndicator.y}
+            r={5}
+            fill={snapStyle.fill}
+            stroke={snapStyle.stroke}
+            strokeWidth={1.5}
+          />
+        </g>
+      )}
+
+      {snapIndicator?.type === 'line-segment' && snapStyle && (
+        <g className="pointer-events-none" opacity={0.95}>
+          <line
+            x1={snapIndicator.x1}
+            y1={snapIndicator.y1}
+            x2={snapIndicator.x2}
+            y2={snapIndicator.y2}
+            stroke={snapStyle.stroke}
+            strokeWidth={2}
+            strokeDasharray="5,4"
+          />
+          <circle
+            cx={snapIndicator.x}
+            cy={snapIndicator.y}
+            r={5}
+            fill={snapStyle.fill}
+            stroke={snapStyle.stroke}
+            strokeWidth={1.5}
+          />
+        </g>
       )}
 
       {lengthLabel && (

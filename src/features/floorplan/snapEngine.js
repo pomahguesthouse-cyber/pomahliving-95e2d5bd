@@ -85,6 +85,19 @@ const lineIntersection = (a, b) => {
   };
 };
 
+const projectPointOnSegment = (point, segment) => {
+  const dx = segment.p2.x - segment.p1.x;
+  const dy = segment.p2.y - segment.p1.y;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq <= 1e-6) return null;
+
+  const t = Math.max(0, Math.min(1, ((point.x - segment.p1.x) * dx + (point.y - segment.p1.y) * dy) / lengthSq));
+  return {
+    x: segment.p1.x + t * dx,
+    y: segment.p1.y + t * dy,
+  };
+};
+
 const collectTargets = ({ walls = [], areas = [], currentPoints = [] }) => {
   const targets = { endpoints: [], midpoints: [], segments: [] };
 
@@ -136,6 +149,13 @@ export const getSnappedPoint = ({
   zoom = 1,
   snapStrength = 14,
   stickyTarget = null,
+  snapMask = {
+    point: true,
+    midpoint: true,
+    intersection: true,
+    segment: true,
+    grid: true,
+  },
 }) => {
   if (!snapEnabled) {
     return { point, indicator: null };
@@ -161,44 +181,93 @@ export const getSnappedPoint = ({
   const midpointIndex = buildPointBucketIndex(targets.midpoints, cellSize);
   const segmentIndex = buildSegmentBucketIndex(targets.segments, cellSize);
 
-  const endpointHit = findNearest(point, queryPointBuckets(endpointIndex, point, threshold, cellSize), threshold);
-  if (endpointHit) {
-    return {
-      point: { x: endpointHit.x, y: endpointHit.y },
-      indicator: { x: endpointHit.x, y: endpointHit.y, type: endpointHit.type },
-      activeTarget: { x: endpointHit.x, y: endpointHit.y, type: endpointHit.type },
-    };
-  }
-
-  const nearbySegments = queryPointBuckets(segmentIndex, point, threshold, cellSize);
-  let intersectionHit = null;
-  for (let index = 0; index < nearbySegments.length; index += 1) {
-    for (let compareIndex = index + 1; compareIndex < nearbySegments.length; compareIndex += 1) {
-      const hit = lineIntersection(nearbySegments[index], nearbySegments[compareIndex]);
-      if (!hit) continue;
-      const distance = distanceBetweenPoints(point, hit);
-      if (distance > threshold) continue;
-      if (!intersectionHit || distance < intersectionHit.distance) {
-        intersectionHit = { ...hit, distance };
-      }
+  if (snapMask.point) {
+    const endpointHit = findNearest(point, queryPointBuckets(endpointIndex, point, threshold, cellSize), threshold);
+    if (endpointHit) {
+      return {
+        point: { x: endpointHit.x, y: endpointHit.y },
+        indicator: { x: endpointHit.x, y: endpointHit.y, type: endpointHit.type },
+        activeTarget: { x: endpointHit.x, y: endpointHit.y, type: endpointHit.type },
+      };
     }
   }
 
-  if (intersectionHit) {
-    return {
-      point: { x: intersectionHit.x, y: intersectionHit.y },
-      indicator: { x: intersectionHit.x, y: intersectionHit.y, type: intersectionHit.type },
-      activeTarget: { x: intersectionHit.x, y: intersectionHit.y, type: intersectionHit.type },
-    };
+  const nearbySegments = queryPointBuckets(segmentIndex, point, threshold, cellSize);
+
+  if (snapMask.intersection) {
+    let intersectionHit = null;
+    for (let index = 0; index < nearbySegments.length; index += 1) {
+      for (let compareIndex = index + 1; compareIndex < nearbySegments.length; compareIndex += 1) {
+        const hit = lineIntersection(nearbySegments[index], nearbySegments[compareIndex]);
+        if (!hit) continue;
+        const distance = distanceBetweenPoints(point, hit);
+        if (distance > threshold) continue;
+        if (!intersectionHit || distance < intersectionHit.distance) {
+          intersectionHit = { ...hit, distance };
+        }
+      }
+    }
+
+    if (intersectionHit) {
+      return {
+        point: { x: intersectionHit.x, y: intersectionHit.y },
+        indicator: { x: intersectionHit.x, y: intersectionHit.y, type: intersectionHit.type },
+        activeTarget: { x: intersectionHit.x, y: intersectionHit.y, type: intersectionHit.type },
+      };
+    }
   }
 
-  const midpointHit = findNearest(point, queryPointBuckets(midpointIndex, point, threshold, cellSize), threshold);
-  if (midpointHit) {
-    return {
-      point: { x: midpointHit.x, y: midpointHit.y },
-      indicator: { x: midpointHit.x, y: midpointHit.y, type: midpointHit.type },
-      activeTarget: { x: midpointHit.x, y: midpointHit.y, type: midpointHit.type },
-    };
+  if (snapMask.midpoint) {
+    const midpointHit = findNearest(point, queryPointBuckets(midpointIndex, point, threshold, cellSize), threshold);
+    if (midpointHit) {
+      return {
+        point: { x: midpointHit.x, y: midpointHit.y },
+        indicator: { x: midpointHit.x, y: midpointHit.y, type: midpointHit.type },
+        activeTarget: { x: midpointHit.x, y: midpointHit.y, type: midpointHit.type },
+      };
+    }
+  }
+
+  if (snapMask.segment) {
+    let segmentHit = null;
+    nearbySegments.forEach((segment) => {
+      const projected = projectPointOnSegment(point, segment);
+      if (!projected) return;
+      const distance = distanceBetweenPoints(point, projected);
+      if (distance > threshold) return;
+      if (!segmentHit || distance < segmentHit.distance) {
+        segmentHit = {
+          x: projected.x,
+          y: projected.y,
+          distance,
+          x1: segment.p1.x,
+          y1: segment.p1.y,
+          x2: segment.p2.x,
+          y2: segment.p2.y,
+          type: 'line-segment',
+        };
+      }
+    });
+
+    if (segmentHit) {
+      return {
+        point: { x: segmentHit.x, y: segmentHit.y },
+        indicator: {
+          x: segmentHit.x,
+          y: segmentHit.y,
+          x1: segmentHit.x1,
+          y1: segmentHit.y1,
+          x2: segmentHit.x2,
+          y2: segmentHit.y2,
+          type: segmentHit.type,
+        },
+        activeTarget: {
+          x: segmentHit.x,
+          y: segmentHit.y,
+          type: segmentHit.type,
+        },
+      };
+    }
   }
 
   const gridPoint = {
@@ -206,9 +275,9 @@ export const getSnappedPoint = ({
     y: Math.round(point.y / gridSize) * gridSize,
   };
 
-  const gridMoved = gridPoint.x !== point.x || gridPoint.y !== point.y;
+  const gridMoved = snapMask.grid && (gridPoint.x !== point.x || gridPoint.y !== point.y);
   return {
-    point: gridPoint,
+    point: gridMoved ? gridPoint : point,
     indicator: gridMoved ? { x: gridPoint.x, y: gridPoint.y, type: 'grid' } : null,
     activeTarget: gridMoved ? { x: gridPoint.x, y: gridPoint.y, type: 'grid' } : null,
   };

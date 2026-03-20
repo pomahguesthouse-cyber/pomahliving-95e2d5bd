@@ -100,6 +100,13 @@ const useFloorPlanStore = create((set, get) => ({
   gridVisible: true,
   snapEnabled: true,
   snapStrength: 14,
+  snapMask: {
+    point: true,
+    midpoint: true,
+    intersection: true,
+    segment: true,
+    grid: true,
+  },
   gridSize: GRID_SIZE,
   gridSizeOptions: [2, 4, 20],
   showText: true,
@@ -177,6 +184,14 @@ const useFloorPlanStore = create((set, get) => ({
   setGridVisible: (visible) => set({ gridVisible: visible }),
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
   setSnapStrength: (value) => set({ snapStrength: Math.max(4, Math.min(40, value)) }),
+  toggleSnapMask: (key) => {
+    set((state) => ({
+      snapMask: {
+        ...state.snapMask,
+        [key]: !state.snapMask?.[key],
+      },
+    }));
+  },
   setShowText: (v) => set({ showText: v }),
   setShowDimensions: (v) => set({ showDimensions: v }),
   setShowLandDimensions: (v) => set({ showLandDimensions: v }),
@@ -676,7 +691,7 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   updateWall: (id, updates, pushHistory = true) => {
-    set((state) => ({
+    set((state) => {
       const vertices = cloneVertices(state.vertices);
       let walls = state.walls.map((wall) => (wall.id === id ? { ...wall, ...updates } : wall));
       const targetWall = walls.find((wall) => wall.id === id);
@@ -701,7 +716,7 @@ const useFloorPlanStore = create((set, get) => ({
       }
 
       return { vertices, walls };
-    }));
+    });
     if (pushHistory) get()._pushHistory();
   },
 

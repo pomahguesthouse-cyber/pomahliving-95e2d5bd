@@ -38,7 +38,7 @@ const FloorCanvas = () => {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions, showLandDimensions,
-    snapEnabled, snapStrength, gridSize,
+    snapEnabled, snapStrength, snapMask, gridSize,
     setGridVisible, setSnapEnabled,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
@@ -75,6 +75,7 @@ const FloorCanvas = () => {
       currentPoints,
       zoom,
       snapStrength,
+      snapMask,
       stickyTarget: stickySnapRef.current,
     });
 
@@ -93,7 +94,7 @@ const FloorCanvas = () => {
       angleDeg: computedAngle,
       constraintMode: constrained.mode,
     };
-  }, [filledAreas, gridSize, snapEnabled, snapStrength, walls, zoom]);
+  }, [filledAreas, gridSize, snapEnabled, snapMask, snapStrength, walls, zoom]);
 
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
