@@ -64,7 +64,7 @@ const ToolSidebar = () => {
 
       <ToolButton
         icon={Square}
-        label="Rect"
+        label="Ruangan"
         active={activeTool === 'room'}
         onClick={() => setActiveTool('room')}
       />
