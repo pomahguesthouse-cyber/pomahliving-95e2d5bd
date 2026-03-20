@@ -142,20 +142,35 @@ const AreaLayer = memo(({
 
       const d = `M ${points.map((p) => `${p.x} ${p.y}`).join(' L ')} Z`;
       const isAreaSelected = selectedId === area.id;
+      const fillColor = isAreaSelected ? '#dbeafe' : '#f0f9ff';
+      const strokeColor = isAreaSelected ? '#1d4ed8' : '#475569';
 
       return (
-        <path
-          key={`contour-${area.id}`}
-          d={d}
-          fill="none"
-          stroke={isAreaSelected ? '#1d4ed8' : '#475569'}
-          strokeWidth={isAreaSelected ? 2.5 : 2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="7,5"
-          opacity={0.9}
-          className="pointer-events-none"
-        />
+        <g key={`area-${area.id}`}>
+          {/* Area fill - menyatu dengan stroke */}
+          <path
+            d={d}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={isAreaSelected ? 2.5 : 2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="7,5"
+            opacity={0.85}
+            className="pointer-events-none"
+          />
+          {/* Solid outline untuk clarity - follow dashed path */}
+          <path
+            d={d}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={isAreaSelected ? 2.5 : 2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.4}
+            className="pointer-events-none"
+          />
+        </g>
       );
     });
   };
