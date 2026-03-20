@@ -307,8 +307,15 @@ const FloorCanvas = () => {
       const target = e.target;
       const id = target.getAttribute('data-id');
       const type = target.getAttribute('data-type');
+      const vertexIndexAttr = target.getAttribute('data-vertex-index');
+      const vertexAreaId = target.getAttribute('data-area-id');
       const handle = target.getAttribute('data-handle');
       const wallHandle = target.getAttribute('data-wall-handle');
+
+      if (vertexIndexAttr != null && vertexAreaId) {
+        setSelected(vertexAreaId, 'area');
+        return;
+      }
 
       if (wallHandle && id) {
         setSelected(id, 'wall');
@@ -523,16 +530,17 @@ const FloorCanvas = () => {
   };
 
   const handleDoubleClick = (e) => {
-    // Handle area vertex edit
-    if (selectedType === 'area' && activeTool === 'select') {
+    // Handle area vertex edit (double-click directly on vertex)
+    if (activeTool === 'select') {
       const vertexIndexAttr = e.target.getAttribute('data-vertex-index');
-      if (vertexIndexAttr != null) {
-        const areaId = selectedId;
+      const areaId = e.target.getAttribute('data-area-id') || selectedId;
+      if (vertexIndexAttr != null && areaId) {
         const area = filledAreas.find((a) => a.id === areaId);
         if (area && Array.isArray(area.points)) {
           const vertexIndex = Number(vertexIndexAttr);
           const point = area.points[vertexIndex];
           if (point) {
+            setSelected(areaId, 'area');
             setEditingAreaId(areaId);
             setEditingVertexIndex(vertexIndex);
             setVertexX(point.x.toString());
