@@ -452,8 +452,25 @@ const FloorCanvas = () => {
   const getCursor = () => {
     if (isPanning) return 'grabbing';
     if (activeTool === 'select') return 'default';
-    if (activeTool === 'wall') return 'crosshair';
+    if (activeTool === 'wall') return 'none';
     return 'crosshair';
+  };
+
+  const getWallCursor = () => {
+    const screenPos = getScreenPoint(mousePos.x, mousePos.y);
+    let angleDeg = 35;
+
+    if (isDrawingWall && currentWallPoints.length > 0 && previewWallPoints.length > 0) {
+      const lastPoint = currentWallPoints[currentWallPoints.length - 1];
+      const previewEnd = previewWallPoints[previewWallPoints.length - 1];
+      const dx = previewEnd.x - lastPoint.x;
+      const dy = previewEnd.y - lastPoint.y;
+      if (dx !== 0 || dy !== 0) {
+        angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+      }
+    }
+
+    return { x: screenPos.x, y: screenPos.y, angleDeg };
   };
 
   const getPolygonCentroid = (points) => {
@@ -520,6 +537,7 @@ const FloorCanvas = () => {
   };
 
   const floatingPos = getSelectedScreenPos();
+  const wallCursor = activeTool === 'wall' ? getWallCursor() : null;
 
   const renderDrawingPreview = () => {
     if (!dragStart) return null;
@@ -636,6 +654,24 @@ const FloorCanvas = () => {
           {renderDrawingPreview()}
         </g>
       </svg>
+
+      {wallCursor && (
+        <div
+          className="absolute pointer-events-none z-40"
+          style={{
+            left: wallCursor.x,
+            top: wallCursor.y,
+            transform: `translate(-2px, -10px) rotate(${wallCursor.angleDeg}deg)`,
+            transformOrigin: '2px 10px',
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="4" y1="20" x2="17" y2="7" stroke="#ef4444" strokeWidth="5" strokeLinecap="round" />
+            <line x1="4" y1="20" x2="17" y2="7" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+            <line x1="2.6" y1="21.4" x2="5.4" y2="18.6" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </div>
+      )}
 
       {selectedId && floatingPos && (
         <FloatingToolbar

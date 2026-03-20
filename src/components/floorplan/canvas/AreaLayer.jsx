@@ -148,17 +148,6 @@ const AreaLayer = memo(({
             className="cursor-move"
           />
         ))}
-        {wallPreviewEnd && (
-          <circle
-            cx={wallPreviewEnd.x}
-            cy={wallPreviewEnd.y}
-            r={4}
-            fill="#93c5fd"
-            stroke="#ef4444"
-            strokeWidth={1.5}
-            className="cursor-move"
-          />
-        )}
       </g>
     );
   };
