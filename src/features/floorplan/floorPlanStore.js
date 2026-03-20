@@ -104,6 +104,9 @@ const useFloorPlanStore = create((set, get) => ({
       isDrawingBoundary: false,
       currentBoundaryPoints: [],
       previewBoundaryPoints: [],
+      isDrawingWall: false,
+      currentWallPoints: [],
+      previewWallPoints: [],
     });
   },
   
@@ -505,10 +508,11 @@ const useFloorPlanStore = create((set, get) => ({
     get()._pushHistory();
   },
 
-  updateLandBoundary: (updates) => {
+  updateLandBoundary: (updates, pushHistory = true) => {
     set((state) => ({
       landBoundary: state.landBoundary ? { ...state.landBoundary, ...updates } : null,
     }));
+    if (pushHistory) get()._pushHistory();
   },
 
   addOutdoorElement: (type, x, y, width, height) => {
@@ -550,21 +554,21 @@ const useFloorPlanStore = create((set, get) => ({
     return id;
   },
 
-  updateWall: (id, updates) => {
+  updateWall: (id, updates, pushHistory = true) => {
     set((state) => ({
       walls: state.walls.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateRoom: (id, updates) => {
+  updateRoom: (id, updates, pushHistory = true) => {
     set((state) => ({
       rooms: state.rooms.map((r) => (r.id === id ? { ...r, ...updates } : r)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateFilledArea: (id, updates) => {
+  updateFilledArea: (id, updates, pushHistory = true) => {
     set((state) => ({
       filledAreas: state.filledAreas.map((a) => {
         if (a.id !== id) return a;
@@ -593,35 +597,35 @@ const useFloorPlanStore = create((set, get) => ({
         return merged;
       }),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateDoor: (id, updates) => {
+  updateDoor: (id, updates, pushHistory = true) => {
     set((state) => ({
       doors: state.doors.map((d) => (d.id === id ? { ...d, ...updates } : d)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateWindow: (id, updates) => {
+  updateWindow: (id, updates, pushHistory = true) => {
     set((state) => ({
       windows: state.windows.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateOpening: (id, updates) => {
+  updateOpening: (id, updates, pushHistory = true) => {
     set((state) => ({
       openings: state.openings.map((o) => (o.id === id ? { ...o, ...updates } : o)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
-  updateOutdoorElement: (id, updates) => {
+  updateOutdoorElement: (id, updates, pushHistory = true) => {
     set((state) => ({
       outdoorElements: state.outdoorElements.map((e) => (e.id === id ? { ...e, ...updates } : e)),
     }));
-    get()._pushHistory();
+    if (pushHistory) get()._pushHistory();
   },
 
   deleteItem: (id) => {
@@ -687,12 +691,12 @@ const useFloorPlanStore = create((set, get) => ({
           points: movedPoints,
           x: snap(area.x + dx),
           y: snap(area.y + dy),
-        });
+        }, false);
       }
     } else if (type === 'land-boundary') {
       const lb = state.landBoundary;
       if (lb) {
-        get().updateLandBoundary({ x: snap(lb.x + dx), y: snap(lb.y + dy) });
+        get().updateLandBoundary({ x: snap(lb.x + dx), y: snap(lb.y + dy) }, false);
       }
     }
   },

@@ -21,12 +21,12 @@ const FloorCanvas = () => {
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
   const [wallPointDragIndex, setWallPointDragIndex] = useState(null);
-  const [lastClickTime, setLastClickTime] = useState(0);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions, showLandDimensions,
+    snapEnabled, gridSize,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
     moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
@@ -34,7 +34,10 @@ const FloorCanvas = () => {
     startWallDrawing, addWallPoint, updateWallPoint, insertWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
 
-  const snapToGrid = useCallback((value) => Math.round(value / GRID_SIZE) * GRID_SIZE, []);
+  const snapToGrid = useCallback((value) => {
+    if (!snapEnabled) return value;
+    return Math.round(value / gridSize) * gridSize;
+  }, [snapEnabled, gridSize]);
 
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
@@ -190,7 +193,7 @@ const FloorCanvas = () => {
     if (resizingId && resizeHandle && resizeStart) {
       const snappedX = snapToGrid(point.x);
       const snappedY = snapToGrid(point.y);
-      const minSize = GRID_SIZE;
+      const minSize = gridSize;
 
       if (resizingType === 'room' || resizingType === 'land-boundary' || resizingType === 'area' || resizingType === 'outdoor') {
         let item;
@@ -240,14 +243,14 @@ const FloorCanvas = () => {
         newHeight = snapToGrid(newHeight);
 
         if (resizingType === 'room') {
-          updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+          updateRoom(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight }, false);
         } else if (resizingType === 'land-boundary') {
-          updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight });
+          updateLandBoundary({ x: newX, y: newY, width: newWidth, height: newHeight }, false);
         } else if (resizingType === 'area') {
-          useFloorPlanStore.getState().updateFilledArea(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+          useFloorPlanStore.getState().updateFilledArea(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight }, false);
         } else {
           // outdoor (carport, garden, road)
-          useFloorPlanStore.getState().updateOutdoorElement(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight });
+          useFloorPlanStore.getState().updateOutdoorElement(resizingId, { x: newX, y: newY, width: newWidth, height: newHeight }, false);
         }
         setResizeStart({ x: snappedX, y: snappedY });
       }
@@ -290,7 +293,7 @@ const FloorCanvas = () => {
     if (activeTool === 'room' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         const id = addRoom(x, y, Math.abs(width), Math.abs(height));
@@ -304,7 +307,7 @@ const FloorCanvas = () => {
     if (activeTool === 'land' && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         setLandBoundary(x, y, Math.abs(width), Math.abs(height));
@@ -317,7 +320,7 @@ const FloorCanvas = () => {
     if (['garden', 'road', 'carport'].includes(activeTool) && dragStart) {
       const width = snapToGrid(point.x) - dragStart.x;
       const height = snapToGrid(point.y) - dragStart.y;
-      if (Math.abs(width) > GRID_SIZE && Math.abs(height) > GRID_SIZE) {
+      if (Math.abs(width) > gridSize && Math.abs(height) > gridSize) {
         const x = width > 0 ? dragStart.x : dragStart.x + width;
         const y = height > 0 ? dragStart.y : dragStart.y + height;
         const typeMap = { garden: 'garden', road: 'road', carport: 'carport' };
@@ -407,6 +410,12 @@ const FloorCanvas = () => {
         e.preventDefault();
         if (e.shiftKey) useFloorPlanStore.getState().redo();
         else useFloorPlanStore.getState().undo();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        useFloorPlanStore.getState().redo();
         return;
       }
       
@@ -539,6 +548,7 @@ const FloorCanvas = () => {
     <div className="relative w-full h-full">
       <svg
         ref={svgRef}
+        data-floorplan-canvas="true"
         className="w-full h-full"
         style={{ background: '#f8fafc', cursor: getCursor() }}
         onMouseDown={handleMouseDown}
@@ -596,6 +606,7 @@ const FloorCanvas = () => {
               setEditingRoomId(id);
               setEditingRoomName(name);
             }}
+            onEditingRoomNameChange={setEditingRoomName}
             onRoomUpdate={(id, updates) => {
               updateRoom(id, updates);
             }}

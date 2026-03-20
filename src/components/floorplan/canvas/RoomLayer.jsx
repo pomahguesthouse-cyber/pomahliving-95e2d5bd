@@ -13,6 +13,7 @@ const RoomLayer = memo(({
   onRoomClick,
   onRoomDoubleClick,
   onNameDoubleClick,
+  onEditingRoomNameChange,
   onRoomUpdate,
 }) => {
   const [editingWidth, setEditingWidth] = useState(null);
@@ -118,6 +119,7 @@ const RoomLayer = memo(({
                     <input
                       type="text"
                       value={editingRoomName}
+                      onChange={(e) => onEditingRoomNameChange?.(e.target.value)}
                       className="w-full px-2 py-1 text-xs text-center bg-white border-2 border-blue-500 rounded outline-none shadow"
                       style={{ fontSize: '11px', fontWeight: 600 }}
                     />
@@ -131,7 +133,7 @@ const RoomLayer = memo(({
                     fontSize={11}
                     fontWeight="600"
                     fill="#1f2937"
-                    className="select-none pointer-events-none cursor-text"
+                    className="select-none cursor-text"
                     onDoubleClick={() => onNameDoubleClick?.(room.id, room.name)}
                   >
                     {room.name}

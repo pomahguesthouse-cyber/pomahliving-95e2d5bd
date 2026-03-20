@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, 
-  Download, Save, Upload, Trash2 
+  Download, Save, Upload 
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 
@@ -21,7 +21,7 @@ const TopToolbar = () => {
   };
 
   const handleExportPNG = () => {
-    const svg = document.querySelector('svg');
+    const svg = document.querySelector('svg[data-floorplan-canvas="true"]');
     if (!svg) return;
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement('canvas');
@@ -63,15 +63,29 @@ const TopToolbar = () => {
     const data = localStorage.getItem('floorplan-save');
     if (data) {
       const parsed = JSON.parse(data);
-      useFloorPlanStore.setState({
+      const loadedState = {
         walls: parsed.walls || [],
         rooms: parsed.rooms || [],
         doors: parsed.doors || [],
         windows: parsed.windows || [],
         openings: parsed.openings || [],
+        landBoundary: parsed.landBoundary || null,
+        outdoorElements: parsed.outdoorElements || [],
         filledAreas: parsed.filledAreas || [],
+      };
+
+      useFloorPlanStore.setState({
+        ...loadedState,
         selectedId: null,
         selectedType: null,
+        history: [loadedState],
+        historyIndex: 0,
+        isDrawingBoundary: false,
+        currentBoundaryPoints: [],
+        previewBoundaryPoints: [],
+        isDrawingWall: false,
+        currentWallPoints: [],
+        previewWallPoints: [],
       });
       alert('Loaded!');
     }
@@ -130,7 +144,7 @@ const TopToolbar = () => {
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
             className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Redo (Ctrl+Y)"
+            title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
           >
             <Redo2 size={16} />
           </button>
