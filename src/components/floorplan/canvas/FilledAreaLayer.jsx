@@ -2,8 +2,6 @@ import { memo } from 'react';
 import { GRID_SIZE, METERS_PER_GRID } from '@/features/floorplan/floorPlanStore';
 import ResizeHandles from '../ui/ResizeHandles';
 
-const toMeters = (px) => (px / GRID_SIZE * METERS_PER_GRID);
-
 const getPolygonCentroid = (points) => {
   const n = points.length;
   if (n === 0) return { x: 0, y: 0 };
@@ -59,22 +57,15 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
         const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
         const isSelected = selectedId === area.id;
 
-        const minX = Math.min(...points.map((p) => p.x));
-        const maxX = Math.max(...points.map((p) => p.x));
-        const minY = Math.min(...points.map((p) => p.y));
-        const maxY = Math.max(...points.map((p) => p.y));
-
-        const wMeters = toMeters(maxX - minX).toFixed(2);
-        const hMeters = toMeters(maxY - minY).toFixed(2);
         const areaMeters = getPolygonAreaMeters(points).toFixed(2);
 
         const centroid = getPolygonCentroid(points);
 
         const box = {
-          x: area.x ?? minX,
-          y: area.y ?? minY,
-          width: area.width ?? (maxX - minX),
-          height: area.height ?? (maxY - minY),
+          x: area.x ?? Math.min(...points.map((p) => p.x)),
+          y: area.y ?? Math.min(...points.map((p) => p.y)),
+          width: area.width ?? (Math.max(...points.map((p) => p.x)) - Math.min(...points.map((p) => p.x))),
+          height: area.height ?? (Math.max(...points.map((p) => p.y)) - Math.min(...points.map((p) => p.y))),
         };
 
         return (
@@ -95,39 +86,14 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
             )}
             {(showText || showDimensions) && (
               <g className="pointer-events-none">
-                {showText && (
-                  <text
-                    x={centroid.x}
-                    y={centroid.y - 10}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={11}
-                    fontWeight="600"
-                    fill="#1f2937"
-                    className="select-none"
-                  >
-                    Ruangan
-                  </text>
-                )}
                 <text
                   x={centroid.x}
-                  y={centroid.y + (showText ? 4 : 0)}
+                  y={centroid.y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={9}
-                  fill="#6b7280"
-                  fontFamily="monospace"
-                  className="select-none"
-                >
-                  {wMeters} x {hMeters}m
-                </text>
-                <text
-                  x={centroid.x}
-                  y={centroid.y + (showText ? 14 : 10)}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={8}
-                  fill="#9ca3af"
+                  fontSize={10}
+                  fontWeight="600"
+                  fill="#374151"
                   fontFamily="monospace"
                   className="select-none"
                 >

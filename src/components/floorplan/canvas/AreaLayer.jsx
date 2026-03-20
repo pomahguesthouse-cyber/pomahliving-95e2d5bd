@@ -1,27 +1,47 @@
-import { memo, useState } from 'react';
-import { GRID_SIZE, METERS_PER_GRID, WALL_THICKNESS } from '@/features/floorplan/floorPlanStore';
-import InlineDimensionEditor from '../ui/InlineDimensionEditor';
+import { memo, useMemo } from 'react';
 
 const AreaLayer = memo(({ 
   walls, 
   areas = [],
   selectedId, 
-  showDimensions, 
   onWallClick,
-  onDimensionEdit,
   wallDrawingPoints,
   wallPreviewEnd,
   isDrawingWall,
 }) => {
-  const [editingWallId, setEditingWallId] = useState(null);
+  const areaEdgeSet = useMemo(() => {
+    const toKey = (x1, y1, x2, y2) => {
+      const a = `${x1},${y1}`;
+      const b = `${x2},${y2}`;
+      return a < b ? `${a}|${b}` : `${b}|${a}`;
+    };
+
+    const keys = new Set();
+    areas.forEach((area) => {
+      const points = Array.isArray(area.points) ? area.points : [];
+      if (points.length < 2) return;
+
+      for (let i = 0; i < points.length; i += 1) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length];
+        keys.add(toKey(p1.x, p1.y, p2.x, p2.y));
+      }
+    });
+
+    return keys;
+  }, [areas]);
+
+  const isWallPartOfArea = (wall) => {
+    const a = `${wall.x1},${wall.y1}`;
+    const b = `${wall.x2},${wall.y2}`;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    return areaEdgeSet.has(key);
+  };
 
   const renderWall = (wall) => {
+    if (isWallPartOfArea(wall)) return null;
+
     const isSelected = selectedId === wall.id;
-    const isEditing = editingWallId === wall.id;
-    const length = Math.sqrt((wall.x2 - wall.x1) ** 2 + (wall.y2 - wall.y1) ** 2);
-    const mx = (wall.x1 + wall.x2) / 2;
-    const my = (wall.y1 + wall.y2) / 2;
-    const isHorizontal = Math.abs(wall.y2 - wall.y1) < Math.abs(wall.x2 - wall.x1);
 
     return (
       <g key={wall.id}>
@@ -52,45 +72,6 @@ const AreaLayer = memo(({
             <circle cx={wall.x1} cy={wall.y1} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
             <circle cx={wall.x2} cy={wall.y2} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
           </>
-        )}
-        {showDimensions && length > 20 && !isEditing && (
-          <g onClick={(e) => { e.stopPropagation(); setEditingWallId(wall.id); }}>
-            <rect
-              x={mx - 16}
-              y={my - 10}
-              width={32}
-              height={12}
-              fill="white"
-              stroke="#e5e7eb"
-              strokeWidth={0.5}
-              rx={2}
-              className="cursor-text"
-            />
-            <text
-              x={mx}
-              y={my + 2}
-              textAnchor="middle"
-              fontSize={7}
-              fill="#374151"
-              fontFamily="monospace"
-              className="pointer-events-none"
-            >
-              {(length / GRID_SIZE * METERS_PER_GRID).toFixed(2)}m
-            </text>
-          </g>
-        )}
-        {isEditing && (
-          <InlineDimensionEditor
-            value={(length / GRID_SIZE * METERS_PER_GRID).toFixed(2)}
-            x={mx}
-            y={my}
-            isHorizontal={isHorizontal}
-            onSubmit={(val) => {
-              onDimensionEdit?.(wall.id, val);
-              setEditingWallId(null);
-            }}
-            onCancel={() => setEditingWallId(null)}
-          />
         )}
       </g>
     );

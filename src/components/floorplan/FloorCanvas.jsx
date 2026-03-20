@@ -616,9 +616,7 @@ const FloorCanvas = () => {
             walls={walls}
             areas={filledAreas}
             selectedId={selectedId}
-            showDimensions={showDimensions}
             onWallClick={(id) => setSelected(id, 'wall')}
-            onDimensionEdit={(id, newLength) => updateWallLength(id, newLength)}
             wallDrawingPoints={currentWallPoints}
             wallPreviewEnd={previewWallPoints.length > 0 ? previewWallPoints[previewWallPoints.length - 1] : null}
             isDrawingWall={isDrawingWall}
