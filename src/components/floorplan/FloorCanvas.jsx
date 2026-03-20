@@ -95,6 +95,13 @@ const FloorCanvas = () => {
           return;
         }
 
+        // Auto-close polygon with single click when there are at least 3 points
+        if (currentWallPoints && currentWallPoints.length >= 3) {
+          const newAreaId = finishWallDrawing();
+          if (newAreaId) setSelected(newAreaId, 'area');
+          return;
+        }
+
         addWallPoint(snappedX, snappedY);
         return;
       }

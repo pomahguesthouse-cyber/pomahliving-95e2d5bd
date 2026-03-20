@@ -97,15 +97,11 @@ const FloorPlanCanvas = () => {
       }
 
       if (isDrawingWall) {
-        // If click is close to the first point, finish the drawing (close loop).
+        // Auto-close polygon with single click when there are at least 3 points
         if (currentWallPoints.length >= 3) {
-          const firstPoint = currentWallPoints[0];
-          const distToStart = Math.hypot(firstPoint.x - point.x, firstPoint.y - point.y);
-          if (distToStart <= GRID_SIZE * 0.75) {
-            const newAreaId = finishWallDrawing();
-            if (newAreaId) setSelected(newAreaId, 'area');
-            return;
-          }
+          const newAreaId = finishWallDrawing();
+          if (newAreaId) setSelected(newAreaId, 'area');
+          return;
         }
 
         // Avoid adding duplicated point on double-click (finish is handled above or via double-click handler)
