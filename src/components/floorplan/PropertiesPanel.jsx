@@ -220,6 +220,7 @@ const PropertiesPanel = memo(() => {
     const bounds = item.width != null && item.height != null ? item : getBoundsFromPoints(item.points);
     const w = bounds.width / PX_PER_M;
     const h = bounds.height / PX_PER_M;
+    const polygonArea = calcArea(item.points || []) / (PX_PER_M * PX_PER_M);
 
     return (
       <>
@@ -251,7 +252,7 @@ const PropertiesPanel = memo(() => {
             />
           </Row>
           <Row label="Area">
-            <span className="text-sm font-semibold text-gray-800">{(w * h).toFixed(2)} m²</span>
+            <span className="text-sm font-semibold text-gray-800">{polygonArea.toFixed(2)} m²</span>
           </Row>
         </Section>
         <Section title="Position">

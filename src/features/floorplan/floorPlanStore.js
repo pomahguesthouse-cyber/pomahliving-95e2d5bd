@@ -97,6 +97,19 @@ const getRectanglePoints = ({ x, y, width, height }) => ([
   { x, y: y + height },
 ]);
 
+const transformPointsToBounds = (points, nextBounds) => {
+  if (!Array.isArray(points) || points.length === 0) return [];
+
+  const prevBounds = getBoundingBox(points);
+  const scaleX = prevBounds.width === 0 ? 1 : nextBounds.width / prevBounds.width;
+  const scaleY = prevBounds.height === 0 ? 1 : nextBounds.height / prevBounds.height;
+
+  return points.map((point) => ({
+    x: nextBounds.x + (point.x - prevBounds.x) * scaleX,
+    y: nextBounds.y + (point.y - prevBounds.y) * scaleY,
+  }));
+};
+
 const useFloorPlanStore = create((set, get) => ({
   vertices: [],
   walls: [],
@@ -752,11 +765,23 @@ const useFloorPlanStore = create((set, get) => ({
 
       let nextArea = { ...area, ...updates };
       if ('x' in updates || 'y' in updates || 'width' in updates || 'height' in updates) {
-        const x = nextArea.x ?? area.x;
-        const y = nextArea.y ?? area.y;
-        const width = nextArea.width ?? area.width;
-        const height = nextArea.height ?? area.height;
-        nextArea.points = getRectanglePoints({ x, y, width, height });
+        const sourcePoints = Array.isArray(area.points) && area.points.length >= 3
+          ? area.points
+          : getRectanglePoints({
+              x: area.x ?? 0,
+              y: area.y ?? 0,
+              width: area.width ?? 0,
+              height: area.height ?? 0,
+            });
+        const sourceBounds = getBoundingBox(sourcePoints);
+        const nextBounds = {
+          x: nextArea.x ?? sourceBounds.x,
+          y: nextArea.y ?? sourceBounds.y,
+          width: nextArea.width ?? sourceBounds.width,
+          height: nextArea.height ?? sourceBounds.height,
+        };
+
+        nextArea.points = transformPointsToBounds(sourcePoints, nextBounds);
       }
 
       const nextPoints = Array.isArray(nextArea.points) ? nextArea.points : area.points;
