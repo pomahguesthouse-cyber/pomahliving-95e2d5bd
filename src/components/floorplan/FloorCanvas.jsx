@@ -31,6 +31,8 @@ const FloorCanvas = () => {
   const [previewLengthLabel, setPreviewLengthLabel] = useState(null);
   const [editingAreaId, setEditingAreaId] = useState(null);
   const [editingVertexIndex, setEditingVertexIndex] = useState(null);
+  const [vertexX, setVertexX] = useState('');
+  const [vertexY, setVertexY] = useState('');
   const pointerFrameRef = useRef(null);
   const pendingPointerRef = useRef(null);
   const stickySnapRef = useRef(null);
@@ -525,8 +527,18 @@ const FloorCanvas = () => {
     if (selectedType === 'area' && activeTool === 'select') {
       const vertexIndexAttr = e.target.getAttribute('data-vertex-index');
       if (vertexIndexAttr != null) {
-        setEditingAreaId(selectedId);
-        setEditingVertexIndex(Number(vertexIndexAttr));
+        const areaId = selectedId;
+        const area = filledAreas.find((a) => a.id === areaId);
+        if (area && Array.isArray(area.points)) {
+          const vertexIndex = Number(vertexIndexAttr);
+          const point = area.points[vertexIndex];
+          if (point) {
+            setEditingAreaId(areaId);
+            setEditingVertexIndex(vertexIndex);
+            setVertexX(point.x.toString());
+            setVertexY(point.y.toString());
+          }
+        }
         return;
       }
     }
@@ -544,6 +556,35 @@ const FloorCanvas = () => {
       console.error('Error finishing wall drawing (double click):', error);
       setActiveTool('select');
     }
+  };
+
+  const handleVertexSubmit = () => {
+    const area = filledAreas.find((a) => a.id === editingAreaId);
+    if (!area || editingVertexIndex === null) return;
+
+    const newX = parseFloat(vertexX);
+    const newY = parseFloat(vertexY);
+    if (isNaN(newX) || isNaN(newY)) {
+      setEditingAreaId(null);
+      setEditingVertexIndex(null);
+      return;
+    }
+
+    const newPoints = [...(Array.isArray(area.points) ? area.points : [])];
+    newPoints[editingVertexIndex] = { x: newX, y: newY };
+    updateFilledArea(editingAreaId, { points: newPoints });
+
+    setEditingAreaId(null);
+    setEditingVertexIndex(null);
+    setVertexX('');
+    setVertexY('');
+  };
+
+  const handleVertexCancel = () => {
+    setEditingAreaId(null);
+    setEditingVertexIndex(null);
+    setVertexX('');
+    setVertexY('');
   };
 
   const handleContextMenu = (e) => {
@@ -585,6 +626,10 @@ const FloorCanvas = () => {
       
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (editingAreaId !== null) {
+          handleVertexCancel();
+          return;
+        }
         if (isDrawingWall) {
           stepBackWallDrawing();
           stickySnapRef.current = null;
@@ -599,6 +644,10 @@ const FloorCanvas = () => {
       }
       
       if (e.key === 'Enter') {
+        if (editingAreaId !== null) {
+          handleVertexSubmit();
+          return;
+        }
         if (isDrawingWall && currentWallPoints.length >= 2) {
           e.preventDefault();
           const shouldForceClose = currentWallPoints.length >= 3;
@@ -630,7 +679,7 @@ const FloorCanvas = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints, setGridVisible, gridVisible, setSnapEnabled, snapEnabled, stepBackWallDrawing]);
+  }, [selectedId, deleteItem, setSelected, setActiveTool, cancelCurrentAction, isDrawingWall, finishWallDrawing, currentWallPoints, setGridVisible, gridVisible, setSnapEnabled, snapEnabled, stepBackWallDrawing, editingAreaId]);
 
   useEffect(() => {
     return () => {
@@ -754,6 +803,61 @@ const FloorCanvas = () => {
 
   return (
     <div className="relative w-full h-full">
+      {/* Vertex Editing Modal */}
+      {editingAreaId !== null && editingVertexIndex !== null && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 pointer-events-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleVertexCancel();
+          }}
+        >
+          <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+            <h3 className="text-lg font-semibold mb-4">Edit Vertex Coordinates</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  X Coordinate
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={vertexX}
+                  onChange={(e) => setVertexX(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Y Coordinate
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={vertexY}
+                  onChange={(e) => setVertexY(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleVertexCancel}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVertexSubmit}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         data-floorplan-canvas="true"
