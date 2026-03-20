@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
+import { getLineAngleDeg, quantizeAnglePoint } from '@/features/floorplan/lineGeometry';
+import { getSnappedPoint } from '@/features/floorplan/snapEngine';
 import FloatingToolbar from './ui/FloatingToolbar';
 import GridLayer from './canvas/GridLayer';
 import FilledAreaLayer from './canvas/FilledAreaLayer';
@@ -21,16 +23,20 @@ const FloorCanvas = () => {
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStart, setResizeStart] = useState(null);
   const [wallPointDragIndex, setWallPointDragIndex] = useState(null);
+  const [wallHandleDrag, setWallHandleDrag] = useState(null);
+  const [hoveredWallId, setHoveredWallId] = useState(null);
+  const [snapIndicator, setSnapIndicator] = useState(null);
+  const [angleLabel, setAngleLabel] = useState(null);
 
   const {
     walls, rooms, doors, windows, openings, landBoundary, outdoorElements, filledAreas,
     selectedId, selectedType, activeTool, gridVisible, zoom, panOffset,
     uploadedImage, showText, showDimensions, showLandDimensions,
-    snapEnabled, gridSize,
+    snapEnabled, snapStrength, gridSize,
     setGridVisible, setSnapEnabled,
     setActiveTool, setSelected, addRoom, addDoor, addWindow,
     addOpening, setLandBoundary, addOutdoorElement, updateLandBoundary,
-    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWallLength,
+    moveItem, deleteItem, setZoom, setPanOffset, updateRoom, updateWall,
     isDrawingWall, currentWallPoints, previewWallPoints,
     startWallDrawing, addWallPoint, updateWallPoint, updateWallPreview, finishWallDrawing, cancelWallDrawing,
   } = useFloorPlanStore();
@@ -40,24 +46,43 @@ const FloorCanvas = () => {
     return Math.round(value / gridSize) * gridSize;
   }, [snapEnabled, gridSize]);
 
-  const constrainWallPoint = useCallback((x, y, lockAxis = false) => {
-    const snappedX = snapToGrid(x);
-    const snappedY = snapToGrid(y);
+  const getAssistedPoint = useCallback((rawPoint, options = {}) => {
+    const {
+      basePoint = null,
+      currentPoints = [],
+      lockAngle = false,
+    } = options;
 
-    if (!lockAxis || !currentWallPoints || currentWallPoints.length === 0) {
-      return { x: snappedX, y: snappedY };
+    let nextPoint = { ...rawPoint };
+    let lockedAngle = null;
+
+    if (lockAngle && basePoint) {
+      const locked = quantizeAnglePoint(basePoint, rawPoint, 45);
+      nextPoint = { x: locked.x, y: locked.y };
+      lockedAngle = locked.angleDeg;
     }
 
-    const last = currentWallPoints[currentWallPoints.length - 1];
-    const dx = Math.abs(snappedX - last.x);
-    const dy = Math.abs(snappedY - last.y);
+    const snapped = getSnappedPoint({
+      point: nextPoint,
+      gridSize,
+      snapEnabled,
+      walls,
+      areas: filledAreas,
+      currentPoints,
+      zoom,
+      snapStrength,
+    });
 
-    if (dx >= dy) {
-      return { x: snappedX, y: last.y };
+    if (!lockedAngle && basePoint) {
+      lockedAngle = getLineAngleDeg({ x1: basePoint.x, y1: basePoint.y, x2: snapped.point.x, y2: snapped.point.y });
     }
 
-    return { x: last.x, y: snappedY };
-  }, [snapToGrid, currentWallPoints]);
+    return {
+      point: snapped.point,
+      indicator: snapped.indicator,
+      angleDeg: lockedAngle,
+    };
+  }, [filledAreas, gridSize, snapEnabled, snapStrength, walls, zoom]);
 
   const getCanvasPoint = useCallback((e) => {
     const svg = svgRef.current;
@@ -81,7 +106,10 @@ const FloorCanvas = () => {
     setResizeHandle(null);
     setResizeStart(null);
     setWallPointDragIndex(null);
+    setWallHandleDrag(null);
     setEditingRoomId(null);
+    setSnapIndicator(null);
+    setAngleLabel(null);
     if (isDrawingWall) {
       cancelWallDrawing();
     } else {
@@ -101,10 +129,18 @@ const FloorCanvas = () => {
 
     // Freehand wall drawing
     if (activeTool === 'wall') {
-      const constrained = constrainWallPoint(point.x, point.y, e.shiftKey);
-      const snappedX = constrained.x;
-      const snappedY = constrained.y;
+      const basePoint = currentWallPoints.length > 0 ? currentWallPoints[currentWallPoints.length - 1] : null;
+      const assisted = getAssistedPoint(point, {
+        basePoint,
+        currentPoints: currentWallPoints,
+        lockAngle: e.shiftKey,
+      });
+      const snappedX = assisted.point.x;
+      const snappedY = assisted.point.y;
       const isDoubleClick = e.detail === 2;
+
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
 
       if (isDrawingWall) {
         const pointIndexAttr = e.target.getAttribute('data-wall-point-index');
@@ -171,6 +207,13 @@ const FloorCanvas = () => {
       const id = target.getAttribute('data-id');
       const type = target.getAttribute('data-type');
       const handle = target.getAttribute('data-handle');
+      const wallHandle = target.getAttribute('data-wall-handle');
+
+      if (wallHandle && id) {
+        setSelected(id, 'wall');
+        setWallHandleDrag({ wallId: id, handle: wallHandle });
+        return;
+      }
 
       if (handle && id) {
         e.stopPropagation();
@@ -199,24 +242,67 @@ const FloorCanvas = () => {
     const point = getCanvasPoint(e);
     setMousePos(point);
 
+    const hoverType = e.target.getAttribute?.('data-type');
+    const hoverId = hoverType === 'wall' ? e.target.getAttribute('data-id') : null;
+    setHoveredWallId(hoverId);
+
     if (isPanning && panStart) {
       setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
       return;
     }
 
+    if (wallHandleDrag) {
+      const wall = walls.find((item) => item.id === wallHandleDrag.wallId);
+      if (!wall) return;
+
+      const assisted = getAssistedPoint(point, {
+        basePoint: wallHandleDrag.handle === 'start' ? { x: wall.x2, y: wall.y2 } : { x: wall.x1, y: wall.y1 },
+        currentPoints: [],
+        lockAngle: e.shiftKey,
+      });
+
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+
+      updateWall(
+        wall.id,
+        wallHandleDrag.handle === 'start'
+          ? { x1: assisted.point.x, y1: assisted.point.y }
+          : { x2: assisted.point.x, y2: assisted.point.y },
+        false
+      );
+      return;
+    }
+
     if (wallPointDragIndex !== null) {
-      const snappedX = snapToGrid(point.x);
-      const snappedY = snapToGrid(point.y);
-      updateWallPoint(wallPointDragIndex, snappedX, snappedY);
+      const previousPoint = currentWallPoints[wallPointDragIndex - 1] || null;
+      const assisted = getAssistedPoint(point, {
+        basePoint: previousPoint,
+        currentPoints: currentWallPoints,
+        lockAngle: e.shiftKey,
+      });
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      updateWallPoint(wallPointDragIndex, assisted.point.x, assisted.point.y);
       return;
     }
 
     // Update wall preview
     if (activeTool === 'wall' && isDrawingWall) {
-      const constrained = constrainWallPoint(point.x, point.y, e.shiftKey);
-      updateWallPreview(constrained.x, constrained.y);
+      const basePoint = currentWallPoints.length > 0 ? currentWallPoints[currentWallPoints.length - 1] : null;
+      const assisted = getAssistedPoint(point, {
+        basePoint,
+        currentPoints: currentWallPoints,
+        lockAngle: e.shiftKey,
+      });
+      setSnapIndicator(assisted.indicator);
+      setAngleLabel(e.shiftKey && assisted.angleDeg != null ? `${Math.round(assisted.angleDeg)}°` : null);
+      updateWallPreview(assisted.point.x, assisted.point.y);
       return;
     }
+
+    setSnapIndicator(null);
+    setAngleLabel(null);
 
     if (resizingId && resizeHandle && resizeStart) {
       const snappedX = snapToGrid(point.x);
@@ -306,6 +392,17 @@ const FloorCanvas = () => {
 
     if (wallPointDragIndex !== null) {
       setWallPointDragIndex(null);
+      setSnapIndicator(null);
+      setAngleLabel(null);
+      useFloorPlanStore.getState()._pushHistory();
+      return;
+    }
+
+    if (wallHandleDrag) {
+      setWallHandleDrag(null);
+      setSnapIndicator(null);
+      setAngleLabel(null);
+      useFloorPlanStore.getState()._pushHistory();
       return;
     }
 
@@ -372,6 +469,8 @@ const FloorCanvas = () => {
     try {
       const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
       const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
+      setSnapIndicator(null);
+      setAngleLabel(null);
       if (newAreaId) setSelected(newAreaId, 'area');
     } catch (error) {
       console.error('Error finishing wall drawing (double click):', error);
@@ -387,6 +486,8 @@ const FloorCanvas = () => {
 
     const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
     const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
+    setSnapIndicator(null);
+    setAngleLabel(null);
     if (newAreaId) setSelected(newAreaId, 'area');
   };
 
@@ -424,6 +525,8 @@ const FloorCanvas = () => {
           e.preventDefault();
           const shouldForceClose = currentWallPoints && currentWallPoints.length >= 3;
           const newAreaId = finishWallDrawing({ forceClose: shouldForceClose });
+          setSnapIndicator(null);
+          setAngleLabel(null);
           if (newAreaId) setSelected(newAreaId, 'area');
           return;
         }
@@ -571,7 +674,12 @@ const FloorCanvas = () => {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={(event) => {
+          setHoveredWallId(null);
+          setSnapIndicator(null);
+          setAngleLabel(null);
+          handleMouseUp(event);
+        }}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
@@ -634,10 +742,13 @@ const FloorCanvas = () => {
             walls={walls}
             areas={filledAreas}
             selectedId={selectedId}
+            hoveredWallId={hoveredWallId}
             onWallClick={(id) => setSelected(id, 'wall')}
             wallDrawingPoints={currentWallPoints}
             wallPreviewEnd={previewWallPoints.length > 0 ? previewWallPoints[previewWallPoints.length - 1] : null}
             isDrawingWall={isDrawingWall}
+            snapIndicator={snapIndicator}
+            angleLabel={angleLabel}
           />
 
           <OpeningLayer

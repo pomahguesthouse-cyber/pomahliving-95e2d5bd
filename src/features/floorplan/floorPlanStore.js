@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
+import { buildLineRecord, getLineLengthPx } from './lineGeometry';
 
 const GRID_SIZE = 20;
 // Each grid cell represents this many meters.
@@ -38,6 +39,7 @@ const useFloorPlanStore = create((set, get) => ({
   activeTool: 'select',
   gridVisible: true,
   snapEnabled: true,
+  snapStrength: 14,
   gridSize: GRID_SIZE,
   gridSizeOptions: [2, 4, 20],
   showText: true,
@@ -113,6 +115,7 @@ const useFloorPlanStore = create((set, get) => ({
   setSelected: (id, type) => set({ selectedId: id, selectedType: type }),
   setGridVisible: (visible) => set({ gridVisible: visible }),
   setSnapEnabled: (enabled) => set({ snapEnabled: enabled }),
+  setSnapStrength: (value) => set({ snapStrength: Math.max(4, Math.min(40, value)) }),
   setShowText: (v) => set({ showText: v }),
   setShowDimensions: (v) => set({ showDimensions: v }),
   setShowLandDimensions: (v) => set({ showLandDimensions: v }),
@@ -175,7 +178,7 @@ const useFloorPlanStore = create((set, get) => ({
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         if (Math.abs(dx) >= gridSize || Math.abs(dy) >= gridSize) {
-          newBoundaries.push({
+          newBoundaries.push(buildLineRecord({
             id: nanoid(),
             x1: p1.x,
             y1: p1.y,
@@ -184,7 +187,8 @@ const useFloorPlanStore = create((set, get) => ({
             thickness: WALL_THICKNESS,
             height: WALL_HEIGHT,
             color: '#374151',
-          });
+            type: 'area-line',
+          }));
         }
       }
 
@@ -244,25 +248,19 @@ const useFloorPlanStore = create((set, get) => ({
 
   // Freehand wall drawing
   startWallDrawing: (x, y) => {
-    const snap = get().snap;
-    const snappedX = snap(x);
-    const snappedY = snap(y);
     set({
       isDrawingWall: true,
-      currentWallPoints: [{ x: snappedX, y: snappedY }],
-      previewWallPoints: [{ x: snappedX, y: snappedY }],
+      currentWallPoints: [{ x, y }],
+      previewWallPoints: [{ x, y }],
       selectedId: null,
       selectedType: null,
     });
   },
 
   addWallPoint: (x, y) => {
-    const snap = get().snap;
-    const snappedX = snap(x);
-    const snappedY = snap(y);
     set((state) => ({
-      currentWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
-      previewWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }],
+      currentWallPoints: [...state.currentWallPoints, { x, y }],
+      previewWallPoints: [...state.currentWallPoints, { x, y }],
     }));
   },
 
@@ -287,10 +285,7 @@ const useFloorPlanStore = create((set, get) => ({
   },
 
   updateWallPreview: (x, y) => {
-    const snap = get().snap;
-    const snappedX = snap(x);
-    const snappedY = snap(y);
-    set((state) => ({ previewWallPoints: [...state.currentWallPoints, { x: snappedX, y: snappedY }] }));
+    set((state) => ({ previewWallPoints: [...state.currentWallPoints, { x, y }] }));
   },
 
   finishWallDrawing: (options = {}) => {
@@ -323,7 +318,7 @@ const useFloorPlanStore = create((set, get) => ({
       for (let i = 0; i < points.length - 1; i += 1) {
         const p1 = points[i];
         const p2 = points[i + 1];
-        newWalls.push({
+        newWalls.push(buildLineRecord({
           id: nanoid(),
           x1: p1.x,
           y1: p1.y,
@@ -332,7 +327,8 @@ const useFloorPlanStore = create((set, get) => ({
           thickness: WALL_THICKNESS,
           height: WALL_HEIGHT,
           color: '#374151',
-        });
+          type: 'area-line',
+        }));
       }
 
       const newAreaId = isClosedLoop ? nanoid() : null;
@@ -405,8 +401,9 @@ const useFloorPlanStore = create((set, get) => ({
       thickness: WALL_THICKNESS,
       height: WALL_HEIGHT,
       color: '#374151',
+      type: 'area-line',
     };
-    set((state) => ({ walls: [...state.walls, wall] }));
+    set((state) => ({ walls: [...state.walls, buildLineRecord(wall)] }));
     get()._pushHistory();
     return id;
   },
@@ -419,7 +416,7 @@ const useFloorPlanStore = create((set, get) => ({
     const lengthPx = newLengthMeters * 20;
     const dx = wall.x2 - wall.x1;
     const dy = wall.y2 - wall.y1;
-    const currentLength = Math.sqrt(dx * dx + dy * dy);
+    const currentLength = getLineLengthPx(wall);
     
     if (currentLength === 0) return;
     
@@ -431,7 +428,7 @@ const useFloorPlanStore = create((set, get) => ({
     
     set((state) => ({
       walls: state.walls.map((w) =>
-        w.id === id ? { ...w, x2: newX2, y2: newY2 } : w
+        w.id === id ? buildLineRecord({ ...w, x2: newX2, y2: newY2 }) : w
       ),
     }));
     get()._pushHistory();
@@ -565,7 +562,7 @@ const useFloorPlanStore = create((set, get) => ({
 
   updateWall: (id, updates, pushHistory = true) => {
     set((state) => ({
-      walls: state.walls.map((w) => (w.id === id ? { ...w, ...updates } : w)),
+      walls: state.walls.map((w) => (w.id === id ? buildLineRecord({ ...w, ...updates }) : w)),
     }));
     if (pushHistory) get()._pushHistory();
   },

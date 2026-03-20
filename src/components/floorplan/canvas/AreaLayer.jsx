@@ -1,13 +1,17 @@
 import { memo, useMemo } from 'react';
+import LineDrawingOverlay from './LineDrawingOverlay';
 
 const AreaLayer = memo(({ 
   walls, 
   areas = [],
   selectedId, 
+  hoveredWallId,
   onWallClick,
   wallDrawingPoints,
   wallPreviewEnd,
   isDrawingWall,
+  snapIndicator,
+  angleLabel,
 }) => {
   const areaEdgeSet = useMemo(() => {
     const toKey = (x1, y1, x2, y2) => {
@@ -42,6 +46,8 @@ const AreaLayer = memo(({
     if (isWallPartOfArea(wall)) return null;
 
     const isSelected = selectedId === wall.id;
+    const isHovered = hoveredWallId === wall.id;
+    const strokeColor = isSelected ? '#2563eb' : isHovered ? '#ef4444' : wall.color;
 
     return (
       <g key={wall.id}>
@@ -62,15 +68,16 @@ const AreaLayer = memo(({
           y1={wall.y1}
           x2={wall.x2}
           y2={wall.y2}
-          stroke={isSelected ? '#2563eb' : wall.color}
-          strokeWidth={isSelected ? 2.5 : 1.5}
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 2.5 : isHovered ? 2 : 1.5}
           strokeLinecap="round"
+          strokeDasharray="7,5"
           className="pointer-events-none"
         />
         {isSelected && (
           <>
-            <circle cx={wall.x1} cy={wall.y1} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
-            <circle cx={wall.x2} cy={wall.y2} r={4} fill="#2563eb" stroke="white" strokeWidth={1.5} />
+            <circle data-id={wall.id} data-type="wall" data-wall-handle="start" cx={wall.x1} cy={wall.y1} r={5} fill="#2563eb" stroke="white" strokeWidth={1.5} className="cursor-move" />
+            <circle data-id={wall.id} data-type="wall" data-wall-handle="end" cx={wall.x2} cy={wall.y2} r={5} fill="#2563eb" stroke="white" strokeWidth={1.5} className="cursor-move" />
           </>
         )}
       </g>
@@ -94,6 +101,7 @@ const AreaLayer = memo(({
           strokeWidth={isAreaSelected ? 2.5 : 2}
           strokeLinecap="round"
           strokeLinejoin="round"
+          strokeDasharray="7,5"
           opacity={0.9}
           className="pointer-events-none"
         />
@@ -101,62 +109,17 @@ const AreaLayer = memo(({
     });
   };
 
-  const renderWallPreview = () => {
-    const points = wallDrawingPoints ?? [];
-    if (!isDrawingWall || points.length === 0 || !wallPreviewEnd) return null;
-    const committedPointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
-    const lastPoint = points[points.length - 1];
-
-    return (
-      <g>
-        {points.length >= 2 && (
-          <polyline
-            points={committedPointsStr}
-            fill="none"
-            stroke="#ef4444"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray="7,5"
-            opacity={0.95}
-          />
-        )}
-
-        {lastPoint && wallPreviewEnd && (
-          <line
-            x1={lastPoint.x}
-            y1={lastPoint.y}
-            x2={wallPreviewEnd.x}
-            y2={wallPreviewEnd.y}
-            stroke="#ef4444"
-            strokeWidth={2}
-            strokeLinecap="round"
-            opacity={0.95}
-          />
-        )}
-
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            data-wall-point-index={i}
-            cx={p.x}
-            cy={p.y}
-            r={4}
-            fill="#60a5fa"
-            stroke="white"
-            strokeWidth={1.5}
-            className="cursor-move"
-          />
-        ))}
-      </g>
-    );
-  };
-
   return (
     <g>
       {walls.map(renderWall)}
       {renderAreaContours()}
-      {renderWallPreview()}
+      <LineDrawingOverlay
+        points={wallDrawingPoints}
+        previewEnd={wallPreviewEnd}
+        isDrawing={isDrawingWall}
+        snapIndicator={snapIndicator}
+        angleLabel={angleLabel}
+      />
     </g>
   );
 });
