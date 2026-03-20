@@ -50,7 +50,7 @@ const getPolygonAreaMeters = (points) => {
 const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = false, showDimensions = false, editingAreaId, editingVertexIndex }) => {
   return (
     <g>
-      {areas.map((area) => {
+      {areas.map((area, index) => {
         const points = Array.isArray(area.points) ? area.points : [];
         if (points.length < 3) return null; // Need at least 3 points to form a polygon
 
@@ -58,6 +58,7 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
         const isSelected = selectedId === area.id;
 
         const areaMeters = getPolygonAreaMeters(points).toFixed(2);
+        const areaLabel = (area.label || '').trim() || `Polygon ${index + 1}`;
 
         const centroid = getPolygonCentroid(points);
 
@@ -105,11 +106,26 @@ const FilledAreaLayer = memo(({ areas = [], selectedId, onAreaClick, showText = 
                 ))}
               </g>
             )}
+            <g className="pointer-events-none">
+              <text
+                x={centroid.x}
+                y={centroid.y - ((showText || showDimensions) ? 7 : 0)}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={11}
+                fontWeight="700"
+                fill="#1f2937"
+                fontFamily="monospace"
+                className="select-none"
+              >
+                {areaLabel}
+              </text>
+            </g>
             {(showText || showDimensions) && (
               <g className="pointer-events-none">
                 <text
                   x={centroid.x}
-                  y={centroid.y}
+                  y={centroid.y + 9}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fontSize={10}
