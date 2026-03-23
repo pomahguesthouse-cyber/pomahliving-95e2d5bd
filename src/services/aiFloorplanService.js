@@ -276,7 +276,25 @@ export const getAIBackendDashboard = async (options = {}) => {
 
   const firstError = [jobsRes.error, versionsRes.error, datasetsRes.error, runsRes.error, modelsRes.error].find(Boolean);
   if (firstError) {
-    throw new Error(firstError.message || 'Gagal mengambil dashboard AI backend.');
+    const message = firstError.message || 'Gagal mengambil dashboard AI backend.';
+    const isMissingTable =
+      message.includes('Could not find the table') ||
+      message.includes('schema cache') ||
+      message.includes('does not exist');
+
+    if (isMissingTable) {
+      return {
+        jobs: [],
+        versions: [],
+        datasets: [],
+        runs: [],
+        models: [],
+        setupRequired: true,
+        setupMessage: 'Tabel AI backend belum tersedia. Jalankan migration Supabase terlebih dahulu.',
+      };
+    }
+
+    throw new Error(message);
   }
 
   return {
@@ -285,6 +303,8 @@ export const getAIBackendDashboard = async (options = {}) => {
     datasets: datasetsRes.data || [],
     runs: runsRes.data || [],
     models: modelsRes.data || [],
+    setupRequired: false,
+    setupMessage: '',
   };
 };
 

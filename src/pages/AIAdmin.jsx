@@ -28,6 +28,8 @@ const AIAdmin = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [setupMessage, setSetupMessage] = useState('');
   const [dashboard, setDashboard] = useState({ jobs: [], versions: [], datasets: [], runs: [], models: [] });
 
   const [datasetForm, setDatasetForm] = useState({
@@ -51,12 +53,16 @@ const AIAdmin = () => {
   const loadDashboard = async () => {
     setLoading(true);
     setError('');
-+   setNotice('');
+    setNotice('');
     try {
       const data = await getAIBackendDashboard({ limit: 20 });
       setDashboard(data);
+      setSetupRequired(Boolean(data?.setupRequired));
+      setSetupMessage(data?.setupMessage || '');
     } catch (err) {
       setError(err.message || 'Gagal memuat dashboard AI backend.');
+      setSetupRequired(false);
+      setSetupMessage('');
     } finally {
       setLoading(false);
     }
@@ -157,6 +163,18 @@ const AIAdmin = () => {
 
         {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
         {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div> : null}
+        {setupRequired ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-2">
+            <p className="font-semibold">Setup database AI belum selesai</p>
+            <p>{setupMessage || 'Tabel AI backend belum dibuat di Supabase.'}</p>
+            <div className="text-xs text-amber-900/90">
+              <p>Langkah cepat:</p>
+              <p>1. Jalankan migration: <span className="font-mono">supabase db push</span></p>
+              <p>2. Deploy function: <span className="font-mono">generate-floorplan</span>, <span className="font-mono">submit-ai-feedback</span>, <span className="font-mono">build-training-dataset</span></p>
+              <p>3. Lihat panduan lengkap di <span className="font-mono">docs/AI_BACKEND_DEPLOY_ID.md</span></p>
+            </div>
+          </div>
+        ) : null}
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card title="Job AI" value={dashboard.jobs.length} subtitle="20 data terbaru" />
