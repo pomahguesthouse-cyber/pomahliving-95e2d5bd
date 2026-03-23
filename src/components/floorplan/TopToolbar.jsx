@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, 
-  Download, Save, Upload 
+  Download, Save, Upload, Sparkles
 } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
+import AIGeneratorModal from './AIGeneratorModal';
 
 const TopToolbar = () => {
   const navigate = useNavigate();
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
   const {
     zoom, setZoom, setPanOffset, clearAll, undo, redo,
     walls, rooms, doors, windows, openings, history, historyIndex,
@@ -187,6 +189,14 @@ const TopToolbar = () => {
           Clear
         </button>
 
+        <button
+          onClick={() => setShowAIGenerator(true)}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2"
+        >
+          <Sparkles size={15} />
+          Generate AI
+        </button>
+
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
@@ -213,6 +223,10 @@ const TopToolbar = () => {
           )}
         </div>
       </div>
+
+      {showAIGenerator && (
+        <AIGeneratorModal onClose={() => setShowAIGenerator(false)} />
+      )}
     </header>
   );
 };

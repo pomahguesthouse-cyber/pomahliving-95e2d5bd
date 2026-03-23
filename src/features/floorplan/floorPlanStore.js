@@ -166,6 +166,16 @@ const useFloorPlanStore = create((set, get) => ({
   zoom: 1,
   panOffset: { x: 100, y: 100 },
   uploadedImage: null,
+  aiGeneration: {
+    status: 'idle',
+    progress: 0,
+    message: '',
+    mode: null,
+    error: null,
+  },
+  aiGenerationHistory: [],
+  selectedAIGenerationId: null,
+  aiSuggestionOpenings: [],
   history: [],
   historyIndex: -1,
   snap: (value) => {
@@ -1059,6 +1069,232 @@ const useFloorPlanStore = create((set, get) => ({
   setUploadedImage: (image) => set({ uploadedImage: image }),
   clearUploadedImage: () => set({ uploadedImage: null }),
 
+  startAIGeneration: ({ mode }) => set({
+    aiGeneration: {
+      status: 'analyzing',
+      progress: 5,
+      message: 'Memulai proses AI...',
+      mode,
+      error: null,
+    },
+    aiSuggestionOpenings: [],
+  }),
+
+  setAIGenerationProgress: ({ progress, message, status }) => set((state) => ({
+    aiGeneration: {
+      ...state.aiGeneration,
+      status: status || state.aiGeneration.status,
+      progress: typeof progress === 'number' ? progress : state.aiGeneration.progress,
+      message: message ?? state.aiGeneration.message,
+      error: null,
+    },
+  })),
+
+  failAIGeneration: (message) => set((state) => ({
+    aiGeneration: {
+      ...state.aiGeneration,
+      status: 'error',
+      error: message || 'Terjadi kesalahan saat membuat denah.',
+      message: message || 'Terjadi kesalahan saat membuat denah.',
+    },
+  })),
+
+  resetAIGenerationState: () => set((state) => ({
+    aiGeneration: {
+      ...state.aiGeneration,
+      status: 'idle',
+      progress: 0,
+      message: '',
+      error: null,
+    },
+    aiSuggestionOpenings: [],
+  })),
+
+  saveAIGenerationVersion: (generatedPlan, options = {}) => {
+    const versionId = nanoid();
+    const summary = {
+      rooms: generatedPlan?.rooms?.length || 0,
+      walls: generatedPlan?.walls?.length || 0,
+      doors: generatedPlan?.openings?.doors?.length || 0,
+      windows: generatedPlan?.openings?.windows?.length || 0,
+      openings: generatedPlan?.openings?.openings?.length || 0,
+      warnings: generatedPlan?.meta?.warnings || [],
+      confidence: generatedPlan?.meta?.confidence || 0,
+      boundary: generatedPlan?.boundary || null,
+    };
+
+    const version = {
+      id: versionId,
+      createdAt: new Date().toISOString(),
+      title: options?.title || `Versi ${new Date().toLocaleTimeString('id-ID')}`,
+      plan: generatedPlan,
+      meta: generatedPlan?.meta || {},
+      summary,
+    };
+
+    set((state) => ({
+      aiGenerationHistory: [version, ...state.aiGenerationHistory].slice(0, 10),
+      selectedAIGenerationId: versionId,
+      aiGeneration: {
+        ...state.aiGeneration,
+        status: 'done',
+        progress: 100,
+        message: 'Draft AI siap direview. Pilih versi lalu terapkan ke kanvas.',
+        error: null,
+      },
+    }));
+  },
+
+  selectAIGenerationVersion: (versionId) => set({ selectedAIGenerationId: versionId }),
+
+  applyGeneratedPlan: (generatedPlan, options = {}) => {
+    const getSafeNumber = (value, fallback = 0) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const openingConfidenceThreshold = typeof options?.openingConfidenceThreshold === 'number'
+      ? options.openingConfidenceThreshold
+      : 0.72;
+
+    const mappedRooms = (generatedPlan?.rooms || []).map((room, index) => ({
+      id: nanoid(),
+      name: room?.name || `Ruangan ${index + 1}`,
+      x: getSafeNumber(room?.x),
+      y: getSafeNumber(room?.y),
+      width: Math.max(20, getSafeNumber(room?.width, 120)),
+      height: Math.max(20, getSafeNumber(room?.height, 120)),
+      roomHeight: 3.2,
+      fill: '#f3f4f6',
+      stroke: '#9ca3af',
+      confidence: getSafeNumber(room?.confidence, 0.75),
+    }));
+
+    const mappedWalls = (generatedPlan?.walls || []).map((wall) => buildLineRecord({
+      id: nanoid(),
+      startVertexId: null,
+      endVertexId: null,
+      x1: getSafeNumber(wall?.x1),
+      y1: getSafeNumber(wall?.y1),
+      x2: getSafeNumber(wall?.x2),
+      y2: getSafeNumber(wall?.y2),
+      thickness: Math.max(6, getSafeNumber(wall?.thickness, WALL_THICKNESS)),
+      height: WALL_HEIGHT,
+      color: '#374151',
+      type: 'area-line',
+      confidence: getSafeNumber(wall?.confidence, 0.75),
+    }));
+
+    const toSuggestedOpening = (item, kind, width) => ({
+      id: nanoid(),
+      x: getSafeNumber(item?.x),
+      y: getSafeNumber(item?.y),
+      width,
+      rotation: getSafeNumber(item?.rotation, 0),
+      type: kind,
+      confidence: getSafeNumber(item?.confidence, 0.7),
+      suggestion: true,
+    });
+
+    const allDoors = (generatedPlan?.openings?.doors || []).map((door) => ({
+      id: nanoid(),
+      x: getSafeNumber(door?.x),
+      y: getSafeNumber(door?.y),
+      width: 90,
+      rotation: getSafeNumber(door?.rotation, 0),
+      type: 'door',
+      confidence: getSafeNumber(door?.confidence, 0.7),
+    }));
+
+    const allWindows = (generatedPlan?.openings?.windows || []).map((win) => ({
+      id: nanoid(),
+      x: getSafeNumber(win?.x),
+      y: getSafeNumber(win?.y),
+      width: 120,
+      rotation: getSafeNumber(win?.rotation, 0),
+      type: 'window',
+      confidence: getSafeNumber(win?.confidence, 0.7),
+    }));
+
+    const allOpenings = (generatedPlan?.openings?.openings || []).map((opening) => ({
+      id: nanoid(),
+      x: getSafeNumber(opening?.x),
+      y: getSafeNumber(opening?.y),
+      width: 100,
+      rotation: getSafeNumber(opening?.rotation, 0),
+      type: 'opening',
+      confidence: getSafeNumber(opening?.confidence, 0.7),
+    }));
+
+    const mappedDoors = allDoors.filter((door) => door.confidence >= openingConfidenceThreshold);
+    const mappedWindows = allWindows.filter((win) => win.confidence >= openingConfidenceThreshold);
+    const mappedOpenings = allOpenings.filter((opening) => opening.confidence >= openingConfidenceThreshold);
+
+    const suggestedOpenings = [
+      ...allDoors.filter((door) => door.confidence < openingConfidenceThreshold).map((door) => toSuggestedOpening(door, 'door', 90)),
+      ...allWindows.filter((win) => win.confidence < openingConfidenceThreshold).map((win) => toSuggestedOpening(win, 'window', 120)),
+      ...allOpenings.filter((opening) => opening.confidence < openingConfidenceThreshold).map((opening) => toSuggestedOpening(opening, 'opening', 100)),
+    ];
+
+    const boundary = generatedPlan?.boundary
+      ? {
+          id: 'land-boundary',
+          x: getSafeNumber(generatedPlan.boundary.x),
+          y: getSafeNumber(generatedPlan.boundary.y),
+          width: Math.max(40, getSafeNumber(generatedPlan.boundary.width, 400)),
+          height: Math.max(40, getSafeNumber(generatedPlan.boundary.height, 400)),
+        }
+      : null;
+
+    const vertices = [];
+    mappedWalls.forEach((wall) => {
+      const start = upsertVertex(vertices, wall.x1, wall.y1);
+      const end = upsertVertex(vertices, wall.x2, wall.y2);
+      connectLineToVertex(start, wall.id);
+      connectLineToVertex(end, wall.id);
+      wall.startVertexId = start.id;
+      wall.endVertexId = end.id;
+    });
+
+    set((state) => ({
+      vertices,
+      walls: mappedWalls,
+      rooms: mappedRooms,
+      doors: mappedDoors,
+      windows: mappedWindows,
+      openings: mappedOpenings,
+      landBoundary: boundary,
+      outdoorElements: [],
+      filledAreas: [],
+      selectedId: null,
+      selectedType: null,
+      isDrawingBoundary: false,
+      currentBoundaryPoints: [],
+      previewBoundaryPoints: [],
+      isDrawingWall: false,
+      currentWallPoints: [],
+      previewWallPoints: [],
+      aiSuggestionOpenings: suggestedOpenings,
+      aiGeneration: {
+        ...state.aiGeneration,
+        status: 'done',
+        progress: 100,
+        message: suggestedOpenings.length > 0
+          ? `Denah diterapkan. ${suggestedOpenings.length} opening ber-confidence rendah disimpan sebagai saran.`
+          : 'Denah berhasil diterapkan. Silakan review dan edit.',
+        error: null,
+      },
+    }));
+
+    get()._pushHistory();
+  },
+
+  loadAIGenerationVersion: (versionId) => {
+    const version = get().aiGenerationHistory.find((item) => item.id === versionId);
+    if (!version?.plan) return;
+    set({ selectedAIGenerationId: versionId });
+  },
+
   clearAll: () => {
     set({
       vertices: [],
@@ -1075,6 +1311,14 @@ const useFloorPlanStore = create((set, get) => ({
       isDrawingBoundary: false,
       currentBoundaryPoints: [],
       previewBoundaryPoints: [],
+      aiSuggestionOpenings: [],
+      aiGeneration: {
+        status: 'idle',
+        progress: 0,
+        message: '',
+        mode: null,
+        error: null,
+      },
     });
     get()._pushHistory();
   },
