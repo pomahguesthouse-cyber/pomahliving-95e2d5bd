@@ -19,6 +19,12 @@ const Landing = () => {
               2D Planner
             </Link>
             <Link
+              to="/ai-admin"
+              className="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              AI Admin
+            </Link>
+            <Link
               to="/floorplan"
               className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-all flex items-center gap-2"
             >

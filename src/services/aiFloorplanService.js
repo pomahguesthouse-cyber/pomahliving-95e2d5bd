@@ -242,3 +242,122 @@ export const buildTrainingDataset = async (payload) => {
 
   return data;
 };
+
+export const getAIBackendDashboard = async (options = {}) => {
+  const limit = Math.max(5, Math.min(100, Number(options.limit) || 20));
+
+  const [jobsRes, versionsRes, datasetsRes, runsRes, modelsRes] = await Promise.all([
+    supabase
+      .from('ai_generation_jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ai_generation_versions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ai_training_datasets')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ai_training_runs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('ai_model_registry')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ]);
+
+  const firstError = [jobsRes.error, versionsRes.error, datasetsRes.error, runsRes.error, modelsRes.error].find(Boolean);
+  if (firstError) {
+    throw new Error(firstError.message || 'Gagal mengambil dashboard AI backend.');
+  }
+
+  return {
+    jobs: jobsRes.data || [],
+    versions: versionsRes.data || [],
+    datasets: datasetsRes.data || [],
+    runs: runsRes.data || [],
+    models: modelsRes.data || [],
+  };
+};
+
+export const createAITrainingRun = async (payload) => {
+  const { data, error } = await supabase
+    .from('ai_training_runs')
+    .insert({
+      dataset_id: payload.datasetId || null,
+      model_name: payload.modelName,
+      base_model: payload.baseModel || null,
+      status: 'queued',
+      metrics: payload.metrics || null,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Gagal membuat training run.');
+  }
+
+  return data;
+};
+
+export const updateAITrainingRunStatus = async (runId, patch) => {
+  const nextPatch = {
+    status: patch.status,
+    metrics: patch.metrics || null,
+    artifact_uri: patch.artifactUri || null,
+  };
+
+  if (patch.status === 'running') {
+    nextPatch.started_at = new Date().toISOString();
+  }
+
+  if (['succeeded', 'failed', 'cancelled'].includes(patch.status)) {
+    nextPatch.completed_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('ai_training_runs')
+    .update(nextPatch)
+    .eq('id', runId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Gagal memperbarui status training run.');
+  }
+
+  return data;
+};
+
+export const activateAIModelVersion = async ({ modelName, versionTag }) => {
+  const { error: resetError } = await supabase
+    .from('ai_model_registry')
+    .update({ is_active: false })
+    .eq('model_name', modelName);
+
+  if (resetError) {
+    throw new Error(resetError.message || 'Gagal menonaktifkan model sebelumnya.');
+  }
+
+  const { data, error } = await supabase
+    .from('ai_model_registry')
+    .update({ is_active: true })
+    .eq('model_name', modelName)
+    .eq('version_tag', versionTag)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Gagal mengaktifkan model AI.');
+  }
+
+  return data;
+};
