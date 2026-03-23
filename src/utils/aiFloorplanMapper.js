@@ -102,6 +102,7 @@ export const mapAIFloorplanToCanvas = (aiResult, options = {}) => {
       warnings: aiResult?.warnings || [],
       confidence: toNumber(aiResult?.confidence, 0.75),
       source: aiResult?.source || 'ai',
+      backend: aiResult?.metadata || null,
     },
   };
 };

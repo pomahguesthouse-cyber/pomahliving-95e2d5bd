@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 type FloorplanRequest = {
   mode: "size" | "image";
+  projectId?: string;
+  userId?: string;
   params?: {
     presetId?: string;
     landWidth?: number;
@@ -35,6 +38,8 @@ type NormalizedPlan = {
 const MODEL_API_URL = Deno.env.get("EXTERNAL_AI_API_URL") || "";
 const MODEL_API_KEY = Deno.env.get("EXTERNAL_AI_API_KEY") || "";
 const MODEL_NAME = Deno.env.get("EXTERNAL_AI_MODEL") || "gpt-4.1-mini";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -54,6 +59,21 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const hasModelConfig = () => Boolean(MODEL_API_URL && MODEL_API_KEY && MODEL_NAME);
+
+const getAdminClient = () => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+};
+
+const summarizePlan = (plan: NormalizedPlan) => ({
+  rooms: plan.rooms.length,
+  walls: plan.walls.length,
+  doors: plan.openings?.doors?.length || 0,
+  windows: plan.openings?.windows?.length || 0,
+  openings: plan.openings?.openings?.length || 0,
+  confidence: plan.confidence,
+  warnings: plan.warnings,
+});
 
 const extractJsonObject = (content: string) => {
   const direct = content.trim();
@@ -284,6 +304,9 @@ serve(async (req) => {
     return json(405, { error: "Method tidak didukung" });
   }
 
+  let jobId: string | null = null;
+  const admin = getAdminClient();
+
   try {
     const payload = (await req.json()) as FloorplanRequest;
 
@@ -293,6 +316,33 @@ serve(async (req) => {
 
     if (payload.mode === "image" && !payload.image) {
       return json(400, { error: "image wajib untuk mode image" });
+    }
+
+    if (admin) {
+      const { data: createdJob, error: createJobError } = await admin
+        .from("ai_generation_jobs")
+        .insert({
+          project_id: payload.projectId || null,
+          user_id: payload.userId || null,
+          mode: payload.mode,
+          status: "processing",
+          input_params: payload.params || {},
+          image_meta: payload.mode === "image"
+            ? {
+                fileName: payload.fileName || null,
+                mimeType: payload.mimeType || null,
+                hasImage: Boolean(payload.image),
+              }
+            : null,
+          model_provider: hasModelConfig() ? "external" : "fallback",
+          model_name: hasModelConfig() ? MODEL_NAME : "fallback-template",
+        })
+        .select("id")
+        .single();
+
+      if (!createJobError) {
+        jobId = createdJob?.id || null;
+      }
     }
 
     let plan: NormalizedPlan;
@@ -312,8 +362,61 @@ serve(async (req) => {
       plan.warnings.push("ENV model AI belum diisi. Sistem memakai fallback lokal.");
     }
 
+    let versionId: string | null = null;
+    if (admin && jobId) {
+      const summary = summarizePlan(plan);
+      const { data: createdVersion, error: createVersionError } = await admin
+        .from("ai_generation_versions")
+        .insert({
+          job_id: jobId,
+          project_id: payload.projectId || null,
+          user_id: payload.userId || null,
+          version_index: 1,
+          plan,
+          summary,
+          quality_score: plan.confidence,
+        })
+        .select("id")
+        .single();
+
+      if (!createVersionError) {
+        versionId = createdVersion?.id || null;
+      }
+
+      await admin
+        .from("ai_generation_jobs")
+        .update({
+          status: "succeeded",
+          completed_at: new Date().toISOString(),
+          model_provider: hasModelConfig() ? "external" : "fallback",
+          model_name: hasModelConfig() ? MODEL_NAME : "fallback-template",
+        })
+        .eq("id", jobId);
+
+      return json(200, {
+        ...plan,
+        metadata: {
+          jobId,
+          versionId,
+          modelName: hasModelConfig() ? MODEL_NAME : "fallback-template",
+          modelProvider: hasModelConfig() ? "external" : "fallback",
+        },
+      });
+    }
+
     return json(200, plan);
   } catch (error) {
+    if (admin && jobId) {
+      await admin
+        .from("ai_generation_jobs")
+        .update({
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          error_message: error instanceof Error ? error.message : "Unknown error",
+        })
+        .eq("id", jobId);
+    }
+
     return json(500, {
       error: "Gagal memproses generate-floorplan",
       detail: error instanceof Error ? error.message : "Unknown error",

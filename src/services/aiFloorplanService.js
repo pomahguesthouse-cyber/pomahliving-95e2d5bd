@@ -161,11 +161,16 @@ const invokeEdgeFunction = async (payload) => {
   return data;
 };
 
-export const generateFloorplanFromSize = async (params, onProgress) => {
+export const generateFloorplanFromSize = async (params, onProgress, context = {}) => {
   onProgress?.(20, 'Mengirim parameter ke AI...');
 
   try {
-    const data = await invokeEdgeFunction({ mode: 'size', params });
+    const data = await invokeEdgeFunction({
+      mode: 'size',
+      params,
+      projectId: context.projectId,
+      userId: context.userId,
+    });
     onProgress?.(85, 'Menerjemahkan hasil AI...');
     return data;
   } catch (error) {
@@ -174,7 +179,7 @@ export const generateFloorplanFromSize = async (params, onProgress) => {
   }
 };
 
-export const generateFloorplanFromImage = async ({ file, params }, onProgress) => {
+export const generateFloorplanFromImage = async ({ file, params }, onProgress, context = {}) => {
   onProgress?.(15, 'Mempersiapkan file gambar...');
 
   try {
@@ -190,6 +195,8 @@ export const generateFloorplanFromImage = async ({ file, params }, onProgress) =
     const data = await invokeEdgeFunction({
       mode: 'image',
       params,
+      projectId: context.projectId,
+      userId: context.userId,
       image: toBase64,
       fileName: file?.name,
       mimeType: file?.type,
@@ -201,4 +208,37 @@ export const generateFloorplanFromImage = async ({ file, params }, onProgress) =
     onProgress?.(75, 'Backend AI tidak tersedia, pakai fallback lokal...');
     return fallbackGenerateFromImage({ file, params });
   }
+};
+
+export const submitAIFeedback = async (feedbackPayload) => {
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('submit-ai-feedback', {
+      body: feedbackPayload,
+    }),
+    12000
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Gagal mengirim feedback AI.');
+  }
+
+  return data;
+};
+
+export const buildTrainingDataset = async (payload) => {
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('build-training-dataset', {
+      body: payload,
+      headers: payload?.adminToken
+        ? { 'x-admin-token': payload.adminToken }
+        : undefined,
+    }),
+    15000
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Gagal membuat dataset training.');
+  }
+
+  return data;
 };

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Loader2, Sparkles, Upload, X } from 'lucide-react';
 import useFloorPlanStore from '@/features/floorplan/floorPlanStore';
 import { mapAIFloorplanToCanvas } from '@/utils/aiFloorplanMapper';
-import { generateFloorplanFromImage, generateFloorplanFromSize } from '@/services/aiFloorplanService';
+import { generateFloorplanFromImage, generateFloorplanFromSize, submitAIFeedback } from '@/services/aiFloorplanService';
 
 const DEFAULT_FORM = {
   presetId: '',
@@ -187,6 +187,20 @@ const AIGeneratorModal = ({ onClose }) => {
       title: selectedVersion.title,
       openingConfidenceThreshold: 0.72,
     });
+
+    const backend = selectedVersion?.meta?.backend;
+    if (backend?.versionId || backend?.jobId) {
+      submitAIFeedback({
+        versionId: backend?.versionId || null,
+        jobId: backend?.jobId || null,
+        action: 'applied',
+        rating: 4,
+        notes: 'Versi diterapkan dari panel preview AI.',
+      }).catch(() => {
+        // Non-blocking feedback path.
+      });
+    }
+
     onClose();
   };
 
@@ -390,6 +404,20 @@ const AIGeneratorModal = ({ onClose }) => {
                       onClick={() => {
                         selectAIGenerationVersion(item.id);
                         applyGeneratedPlan(item.plan, { title: item.title, openingConfidenceThreshold: 0.72 });
+
+                        const backend = item?.meta?.backend;
+                        if (backend?.versionId || backend?.jobId) {
+                          submitAIFeedback({
+                            versionId: backend?.versionId || null,
+                            jobId: backend?.jobId || null,
+                            action: 'applied',
+                            rating: 4,
+                            notes: 'Versi diterapkan langsung dari daftar riwayat AI.',
+                          }).catch(() => {
+                            // Non-blocking feedback path.
+                          });
+                        }
+
                         onClose();
                       }}
                       className="text-xs px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-black"
